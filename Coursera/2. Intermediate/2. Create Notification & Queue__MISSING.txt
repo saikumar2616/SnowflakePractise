@@ -1,0 +1,17 @@
+---Create an Queue in trhe Azure Storage and also create an event for the Queue Storage
+
+
+Create or replace notification integration snowpipe_event
+	enabled=true
+	type=queue
+	notification_provider=Azure_Storage_queue
+	Azure_Storage_queue_primary_URI = 'https://azureastoragesnowflaket.queue.core.windows.net/snowpipequeue'
+	Azure_tenant_id = '';
+	
+	
+--Register Integration
+Desc notification integration snowpipe_event;
+
+
+-- Go to the URL in the desc utility property and validate it.
+-- Then add a role Storage Queue Data Contributor  of the queue account to the above validatd membe looking like snowflakePACInt which came for notification integration.

@@ -1,0 +1,34 @@
+-- Switch to role of ACCOUNTADMIN --
+USE ROLE ACCOUNTADMIN;
+create or replace database demo_db;
+
+USE DATABASE DEMO_DB;
+USE WAREHOUSE COMPUTE_WH;
+
+ -- Set up the table for the exercise --
+CREATE OR REPLACE TABLE DEMO_DB.PUBLIC.PART
+AS
+SELECT * FROM "SNOWFLAKE_SAMPLE_DATA"."TPCH_SF1"."PART";
+ 
+SELECT * FROM PART
+ORDER BY P_MFGR DESC;
+
+
+-- Update the data -- 
+UPDATE DEMO_DB.PUBLIC.PART
+SET P_MFGR='Manufacturer#CompanyXXYY'
+WHERE P_MFGR='Manufacturer#5';
+ 
+----> Note query id here: 01ad1834-0001-287d-0000-0004158a8029
+ 
+SELECT * FROM PART
+ORDER BY P_MFGR DESC;
+
+
+
+select * from demo_db.public.part  at (OFFSET =>-60*11) 
+
+
+select * from demo_db.public.part before (statement => '01ad1834-0001-287d-0000-0004158a8029')
+
+select * from demo_db.public.part before (timestamp => '2023-06-20 07:11:00.145'::timestamp)

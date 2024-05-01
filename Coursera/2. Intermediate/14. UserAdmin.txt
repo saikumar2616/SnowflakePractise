@@ -1,0 +1,12 @@
+-- USERADMIN --
+
+--- User 4 ---
+CREATE USER ben PASSWORD = '123' 
+DEFAULT_ROLE = ACCOUNTADMIN 
+MUST_CHANGE_PASSWORD = TRUE;
+
+GRANT ROLE HR_ADMIN TO USER ben; -- as useradmin not possible as HR_ADMIN wasd created using SYSADMIN role
+
+SHOW ROLES;
+
+GRANT ROLE HR_ADMIN TO ROLE SYSADMIN; --addiung HR_ADMIN to SYS_ADMIN and then we can grant using SYSADMIN

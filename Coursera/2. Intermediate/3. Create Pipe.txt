@@ -1,0 +1,63 @@
+---uploaa a file into snowpipe container in Azure created in early stage
+--Notification will appear in the queue called snowpipepqueue
+
+--query file
+select 
+$1,
+$2,
+.
+.
+.
+$20
+from @snowpipe.public.stage_azure;
+
+
+--create destination table
+create or replace table snowpipe.public.happiness (
+	country_name varchar,
+	regional_indicator varchar,
+	.
+	.
+	.
+	dystopia_residual number(4,3)
+	)
+
+	
+	
+Copy into happiness 
+froM @snowpipe.public.stage_azure;	
+
+
+SELECT * FROM snowpipe.public.happiness;
+
+tRUNCATE TABLE snowpipe.public.happiness;
+
+
+
+--CREATE PIPE
+CREATE  PIPE AZURE_PIPE
+AUTO_INGEST = TRUE
+INTEGRATION = 'SNOWPIPE_EVENT'
+AS
+COPY INTO snowpipe.public.happiness
+FROM @snowpipe.public.stage_azure;
+
+
+
+--when u dont findata..
+ALTER PIPE AZURE_PIPE REFRESH;  -- takes couple of minutes to c the data aftr triggering the command 
+
+
+
+--fILTER ON SPECIFIC TABLE AND SCHEMA
+select * from snowflake.account_usage.load_history
+where schema_name ='PUBLIC' and 
+table_name = 'HAPPINESS';
+
+
+select * from table(information_schema.copy_history(table_name=>'HAPPINESS' , start_time=> dateadd(days,-1,current_timestamp())));
+
+
+--status of the pipe and files loaded
+select SYSTEM$PIPE_STATUS('AZURE_PIPE')
+
