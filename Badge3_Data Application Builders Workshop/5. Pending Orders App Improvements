@@ -1,0 +1,52 @@
+-- 🥋 Create a Sequence to Use as a Row ID
+create sequence order_seq
+    start = 1
+    increment = 1
+    comment = 'Provide a unique id for Smoothie records';
+
+-- 🥋 Truncate the Orders Table
+-- We can't add a column with a UNIQUE ID if the table has rows in it already. Truncate the Orders table to remove all rows. 
+Truncate table smoothies.public.orders;
+
+-- 🥋 Add the Unique ID Column  
+alter table SMOOTHIES.PUBLIC.ORDERS 
+add column order_uid integer --adds the column
+default smoothies.public.order_seq.nextval  --sets the value of the column to sequence
+constraint order_uid unique enforced; --makes sure there is always a unique value in the column;
+
+
+-- 🥋 Audit Ownership of All Your Objects to SYSADMIN
+
+
+-- 🥋 Test Your Apps
+select * from SMOOTHIES.PUBLIC.ORDERS;
+
+
+-- 🥋 The ORDERS Table Definition
+create or replace table smoothies.public.orders (
+       order_uid number(38,0) default smoothies.public.order_seq.nextval,
+       order_filled boolean default false,
+       name_on_order varchar(100),
+       ingredients varchar(200),
+       order_ts timestamp_ltz(9) default current_timestamp(),
+       constraint order_uid unique (order_uid)
+);
+
+
+-- 🥋 Test Your SiS Apps Again
+select * from SMOOTHIES.PUBLIC.ORDERS;
+
+
+-- 🥋 Changing the Match Column for the MERGE to order_uid instead of name_on_order
+
+
+-- 🥋 Making the Success Message More Meaningful  
+
+-- 🥋 Making the GUI Look Better 
+
+
+-- 📓 Limiting Smoothie Orders to Just 5 or Fewer Fruits
+
+
+-- 🥋 Researching Limiting Entries on Streamlit Multiselects
+-- max_selections=5

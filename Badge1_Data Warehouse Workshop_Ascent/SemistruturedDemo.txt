@@ -1,0 +1,7 @@
+use database training_DB;
+
+select v:data:country : STRING  from table --- onversion to string
+
+select v:data:observations[0]:air:temp:: NUMBER(30,2) from table --- gives sepecific 
+
+select value:air:temp:: NUMBER(30,2) from table  , lateral flatten (input ==> V:data:observations) LIMIT 100 ---- iterates and gives all the values

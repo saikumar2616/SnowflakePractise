@@ -1,0 +1,27 @@
+-- 🧰 Set Up a Streamlit Account and Give It Access to Your GitHub Account
+-- https://streamlit.io
+
+-- ⛔ Troubleshooting Streamlit
+
+-- 🥋 Create an App iusing the Streamlit UI 
+
+-- 📓 Good Developers Aren't Afraid of Error Messages
+
+--🥋 View the Error and Update the Settings
+    -- use manage app in the right bottom of teh streamlit app for connection to snowflake
+    https://docs.streamlit.io/knowledge-base/tutorials/databases/snowflake#add-connection-parameters-to-your-local-app-secrets
+
+    -- Seah for the section caled "Add connection parameters to your local app secrets"
+    -- Your local Streamlit app will read secrets from a file .streamlit/secrets.toml in your app’s root directory. Learn more about Streamlit secrets management here. Create this file if it doesn’t exist yet and add your Snowflake username, password, account identifier, and the name of your warehouse, database, and schema as shown below:
+        --     # .streamlit/secrets.toml
+        
+        -- [connections.snowflake]
+        -- account = "xxx"
+        -- user = "xxx"
+        -- password = "xxx"
+        -- role = "xxx"
+        -- warehouse = "xxx"
+        -- database = "xxx"
+        -- schema = "xxx"
+        -- client_session_keep_alive = true
+

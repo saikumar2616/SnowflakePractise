@@ -1,0 +1,59 @@
+select * from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY;
+
+describe view WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY;
+
+
+select distinct country from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY;
+
+select distinct postal_code from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY
+where postal_code like '481%' or postal_code like '482%';
+
+select distinct postal_code from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY
+where left(postal_code,3) in ('481','482')
+
+------------------------------
+
+create database MARKETING;  
+
+create schema  MARKETING.MAILERS;
+
+create or replace view MARKETING.MAILERS.DETROIT_ZIPS 
+as
+select distinct postal_code from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY
+where left(postal_code,3) in ('481','482');
+
+--------------------------------------
+select count(*) 
+from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY ;
+
+select count(*) 
+from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY history
+Join MARKETING.MAILERS.DETROIT_ZIPS zips
+on history.postal_code = zips.postal_code;
+
+------------------------------------------
+
+select min(date_valid_std),max(date_valid_std) 
+from WEATHERSOURCE.STANDARD_TILE.HISTORY_DAY history
+Join MARKETING.MAILERS.DETROIT_ZIPS zips
+on history.postal_code = zips.postal_code;
+
+
+select min(date_valid_std),max(date_valid_std) 
+from WEATHERSOURCE.STANDARD_TILE.FORECAST_DAY forecast
+Join MARKETING.MAILERS.DETROIT_ZIPS zips
+on forecast.postal_code = zips.postal_code;
+
+-------------------------------------------
+
+select * from WEATHERSOURCE.STANDARD_TILE.FORECAST_DAY;
+
+
+select  avg(avg_cloud_cover_tot_pct), date_valid_std, 
+from WEATHERSOURCE.STANDARD_TILE.FORECAST_DAY  forecast
+Join MARKETING.MAILERS.DETROIT_ZIPS zips
+on forecast.postal_code = zips.postal_code
+group by date_valid_std
+order by avg(avg_cloud_cover_tot_pct);
+
+

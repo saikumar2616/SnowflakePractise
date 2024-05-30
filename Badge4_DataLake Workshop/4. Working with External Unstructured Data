@@ -1,0 +1,237 @@
+-- 📓 External Data is Easy, Let's Do Some More!
+-- Images are considered UNSTRUCTURED data, so she's wondering if accessing images without loading them will be just as easy as the flat files. 
+
+-- 🎯 Run a List Command On the Clothing Stage which is UNSTRUCTURED data
+list @ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING;
+
+select $1 from @ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING;  --Uh-oh! It's giving us an error message!
+
+-- 🥋 Try to Query an Unstructured Data File
+select $1
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_clothing/90s_tracksuit.png; 
+
+
+-- 🥋 What's Going On?
+-- 🥋 Query with 2 Built-In Meta-Data Columns
+select metadata$filename, metadata$file_row_number
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_clothing/90s_tracksuit.png;
+
+-- 🎯 Write a Query That Returns Something More Like a List Command
+select metadata$filename, count(metadata$file_row_number) as NUMBER_OF_ROWS
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_clothing 
+group by metadata$filename;
+
+
+
+-- 📓 File Formats for Unstructured Data? Nope. 
+    -- Just as the  SELECT $1 Query method won't work for Unstructured Data, neither will file formats.
+    
+    -- File formats come in 6 flavors - CSV, JSON, XML, PARQUET, ORC, & AVRO. Notice that nothing in that list says "PDF" or "Image" or "PNG" or "JPG." 
+    
+    -- For images, we'll have to keep looking and find a better way. We'll search the online Docs for "Unstructured Data" and notice something called a "Directory Table." 
+    --     Directory Tables might work! So let's explore them further! A few important tips about Directory Tables. 
+    
+    -- They are attached to a Stage (internal or external).  
+    -- You have to enable them. 
+    -- You have to refresh them. 
+
+
+-- 🥋 Enabling, Refreshing and Querying Directory Tables 
+--Directory Tables
+select * from directory(@uni_klaus_clothing);
+
+-- Oh Yeah! We have to turn them on, first
+alter stage uni_klaus_clothing 
+set directory = (enable = true);
+
+--Now?
+select * from directory(@uni_klaus_clothing);
+
+--Oh Yeah! Then we have to refresh the directory table!
+alter stage uni_klaus_clothing refresh;
+
+--Now?
+select * from directory(@uni_klaus_clothing);
+
+
+
+-- 📓 What About Functions for Directory Tables?
+-- Can she run functions on the columns? And if she creates a SELECT that makes her data look a little nicer, can she put a view on top of it? 
+
+
+-- 🥋 Start By Checking Whether Functions will Work on Directory Tables 
+--testing UPPER and REPLACE functions on directory table
+select UPPER(RELATIVE_PATH) as uppercase_filename
+, REPLACE(uppercase_filename,'/') as no_slash_filename
+, REPLACE(no_slash_filename,'_',' ') as no_underscores_filename
+, REPLACE(no_underscores_filename,'.PNG') as just_words_filename
+from directory(@uni_klaus_clothing);
+
+-- 📓 Cool Snowflake SQL Trick!   ---> define a column using the AS syntax, and then use that column name in the very next line of the same SELECT. This is not true in many other database systems and can be very convenient when developing complex syntax.
+
+
+
+-- 🎯 Nest 4 Functions into 1 Statement
+select 
+-- UPPER(RELATIVE_PATH) as uppercase_filename
+-- , REPLACE(uppercase_filename,'/') as no_slash_filename
+-- , REPLACE(no_slash_filename,'_',' ') as no_underscores_filename
+ REPLACE(REPLACE(REPLACE(UPPER(RELATIVE_PATH),'/'),'_',' '),'.PNG') as PRODUCT_NAME
+from directory(@uni_klaus_clothing);
+
+
+-- 📓 Functions Work on Directory Tables, What About Joins? 
+-- 🥋 Create an Internal Table in the Zena Database
+--create an internal table for some sweat suit info
+create or replace TABLE ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS (
+	COLOR_OR_STYLE VARCHAR(25),
+	DIRECT_URL VARCHAR(200),
+	PRICE NUMBER(5,2)
+);
+
+--fill the new table with some data
+insert into  ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS 
+          (COLOR_OR_STYLE, DIRECT_URL, PRICE)
+values
+('90s', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/90s_tracksuit.png',500)
+,('Burgundy', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/burgundy_sweatsuit.png',65)
+,('Charcoal Grey', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/charcoal_grey_sweatsuit.png',65)
+,('Forest Green', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/forest_green_sweatsuit.png',65)
+,('Navy Blue', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/navy_blue_sweatsuit.png',65)
+,('Orange', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/orange_sweatsuit.png',65)
+,('Pink', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/pink_sweatsuit.png',65)
+,('Purple', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/purple_sweatsuit.png',65)
+,('Red', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/red_sweatsuit.png',65)
+,('Royal Blue',	'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/royal_blue_sweatsuit.png',65)
+,('Yellow', 'https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/yellow_sweatsuit.png',65);
+
+
+
+-- 🎯 Can You Join These?
+select SPLIT_PART(DIRECT_URL, $$/$$, -1) from ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS;
+select SPLIT_PART(RELATIve_Path, $$/$$, -1) from directory(@ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING)
+
+select * from 
+directory(@ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING)  dirtable 
+join ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS  sweattable
+on SPLIT_PART(DIRECT_URL, $$/$$, -1) = SPLIT_PART(RELATIve_Path, $$/$$, -1)
+
+select color_or_style,
+direct_url,
+price,
+size as image_size,
+last_modified as image_last_modified
+from 
+directory(@ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING)  dirtable 
+join ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS  sweattable
+on SPLIT_PART(DIRECT_URL, $$/$$, -1) = SPLIT_PART(RELATIve_Path, $$/$$, -1)
+
+select color_or_style,
+direct_url,
+price,
+size as image_size,
+last_modified as image_last_modified
+from 
+directory(@ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING)  dirtable 
+join ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS  sweattable
+on dirtable.relative_path=substr(sweattable.direct_url,54,50);
+
+-- 📓  Using Functions in the ON clause of the JOIN
+-- 📓  Adding a Cross Join
+    -- Cross Joins are also called "cartesian products" and many times when data professionals talk about cartesian products they are describing a bad join that resulted in many more records than they intended. In this case, though, the cartesian product (multiplicative) is our goal.
+    -- Remember that Cross Joins are different than Outer Joins. While both joins can result in an "explosion" of rows, the resulting columns look different.
+
+
+-- 🥋 Add the CROSS JOIN 
+-- 3 way join - internal table, directory table, and view based on external data
+create or replace view ZENAS_ATHLEISURE_DB.PRODUCTS.catalog as
+select color_or_style 
+, direct_url
+, price
+, size as image_size
+, last_modified as image_last_modified
+, sizes_available
+from sweatsuits 
+join directory(@uni_klaus_clothing) 
+on relative_path = SUBSTR(direct_url,54,50)
+cross join sweatsuit_sizes;
+
+select * from ZENAS_ATHLEISURE_DB.PRODUCTS.catalog;
+
+
+-- 📓 What is a Data Lake?
+-- Dixon said:
+    -- If you think of a data mart as a store of bottled water -- cleansed and packaged and structured for easy consumption -- the data lake is a large body of water in a more natural state. The contents of the data lake stream in from a source to fill the lake, and various users of the lake can come to examine, dive in, or take samples.
+
+-- When we talk about Data Lakes at Snowflake, we tend to mean data that has not been loaded into traditional Snowflake tables. We might also call these traditional tables "native" Snowflake tables, or "regular" tables. 
+
+-- As we've already seen, Structured and Semi-structured data that is sitting outside of Snowflake can be easily accessed and analyzed using familiar Snowflake tools like views, file formats, and SQL queries. 
+
+-- We've also seen how Unstructured data, not loaded into Snowflake, can be accessed with a special Snowflake tool called a Directory Table. We've also seen how Directory Tables can be used in combination with functions, joins, internal tables, and standard views to access that non-loaded data. 
+
+-- And through all this, we've seen that bringing together loaded and non-loaded data is a simple and seamless process.  When some data is loaded and some is left in a non-loaded state the two types can be joined and queried together, this is sometimes referred to as a Data Lakehouse. 
+
+
+-- 📓 WHAT You Can, WHERE You Can - With Snowflake's Many HOW-You-Cans
+-- Depending on your role in a data-driven organization:
+    -- You may have the power to move data into Snowflake internal tables, or you may not.
+    -- You may have the power to update data already loaded in internal tables, or you may not.
+    -- You may have the power to copy data from one stage to another, or you may not.
+-- Snowflake makes it possible for you to do WHAT you can, WHERE you can, because Snowflake keeps adding new HOW-You-Cans to the Snowflake toolset. 
+
+-- So, while a worker in one department might think "I'll just run an update statement on that table," another worker trying to achieve the same goal might need to modify a view in their little corner of Snowflake, while another might be able to add a file to a cloud folder and put a stage and view on top of that file, and then join it to data someone else has loaded. 
+
+-- All the different Hands-On Essentials workshops help you learn about various WHATs and HOWs of Snowflake.
+
+-- This workshop focuses more specifically on one of the WHEREs. In this case, the WHERE is external. The WHERE is external to Snowflake's native tables. 
+
+
+-- 🥋 Add the Upsell Table and Populate It
+-- Add a table to map the sweat suits to the sweat band sets
+create table ZENAS_ATHLEISURE_DB.PRODUCTS.UPSELL_MAPPING
+(
+SWEATSUIT_COLOR_OR_STYLE varchar(25)
+,UPSELL_PRODUCT_CODE varchar(10)
+);
+
+--populate the upsell table
+insert into ZENAS_ATHLEISURE_DB.PRODUCTS.UPSELL_MAPPING
+(
+SWEATSUIT_COLOR_OR_STYLE
+,UPSELL_PRODUCT_CODE 
+)
+VALUES
+('Charcoal Grey','SWT_GRY')
+,('Forest Green','SWT_FGN')
+,('Orange','SWT_ORG')
+,('Pink', 'SWT_PNK')
+,('Red','SWT_RED')
+,('Yellow', 'SWT_YLW');
+
+
+-- 📓 When Data is Left Where it Lands...
+-- When data is left in the Lake-- (aka "left where it lands") -- (aka left in the external store) -- developers without the time or permissions to cleanse, normalize, and store it will need to be creative at times to get what they need, from whatever is already available.
+
+-- 🥋 Zena's View for the Athleisure Web Catalog Prototype
+-- Zena needs a single view she can query for her website prototype
+create view catalog_for_website as 
+select color_or_style
+,price
+,direct_url
+,size_list
+,coalesce('BONUS: ' ||  headband_description || ' & ' || wristband_description, 'Consider White, Black or Grey Sweat Accessories')  as upsell_product_desc
+from
+(   select color_or_style, price, direct_url, image_last_modified,image_size
+    ,listagg(sizes_available, ' | ') within group (order by sizes_available) as size_list
+    from catalog
+    group by color_or_style, price, direct_url, image_last_modified, image_size
+) c
+left join upsell_mapping u
+on u.sweatsuit_color_or_style = c.color_or_style
+left join sweatband_coordination sc
+on sc.product_code = u.upsell_product_code
+left join sweatband_product_line spl
+on spl.product_code = sc.product_code
+where price < 200 -- high priced items like vintage sweatsuits aren't a good fit for this website
+and image_size < 1000000 -- large images need to be processed to a smaller size
+;

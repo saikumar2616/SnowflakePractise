@@ -1,0 +1,129 @@
+-- 📓  Materialized Views, External Tables,  and Iceberg Tables
+-- all of these objects are attempts to make your less-normalized (possibly non-loaded) data look and perform like more-normalized (possibly loaded) data. 
+
+
+-- 📓  Materialized Views
+-- A Materialized View is like a view that is frozen in place (more or less looks and acts like a table).
+
+-- The big difference is that if some part of the underlying data changes,  Snowflake recognizes the need to refresh it, automatically.
+-- People often choose to create a materialized view if they have a view with intensive logic that they query often but that does NOT change often.  We can't use a Materialized view on any of our trails data because you can't put a materialized view directly on top of staged data. 
+
+
+
+
+
+-- 📓  External Tables
+-- An External Table is a table put over the top of non-loaded data (sounds like our recent views, right?).
+
+-- An External Table points at a stage folder(yep, we know how to do that!) and includes a reference to a file format (or formatting attributes) much like what we've been doing with our views for most of this workshop! 
+-- There are other parts that are somewhat new, but that don't seem complicated. In our views we define the PATH and CAST first and then assign a name by saying AS <column name>. For the external table we just flip the order. State the column name first, then AS, then the PATH and CAST column definition. 
+-- But External Tables seem like they have some weird, intense, unfamiliar things, too. Partitioning schemes and streaming message notification integrations are going to make more sense for Data Engineers (and the Data Engineering Hands-On Workshop!)
+
+
+
+-- 🥋 Remember this View? Let's Look at it, then Rename It!
+select * from MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.CHERRY_CREEK_TRAIL;
+
+-- We're going to create this same data structure with an External Table so let's change the name of our view to have "V_" in front of the name. That way we can create a table that starts with "T_".
+alter view MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.CHERRY_CREEK_TRAIL 
+rename to MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.V_CHERRY_CREEK_TRAIL;
+
+
+
+-- 🥋 Let's Create a Super-Simple, Stripped Down External Table
+create or replace external table T_CHERRY_CREEK_TRAIL(
+	my_filename varchar(50) as (metadata$filename::varchar(50))
+) 
+location= @trails_parquet
+auto_refresh = true
+file_format = (type = parquet);
+
+
+-- 🥋 Now Let's Modify Our V_CHERRY_CREEK_TRAIL Code to Create the New Table
+select get_ddl('view','mels_smoothie_challenge_db.trails.v_cherry_creek_trail');
+
+---Lets grad piece to create table from the below view
+-- create or replace view V_CHERRY_CREEK_TRAIL(
+-- 	POINT_ID,
+-- 	TRAIL_NAME,
+-- 	LNG,
+-- 	LAT,
+-- 	COORD_PAIR
+-- ) as
+-- select 
+--  $1:sequence_1 as point_id,
+--  $1:trail_name::varchar as trail_name,
+--  $1:latitude::number(11,8) as lng,
+--  $1:longitude::number(11,8) as lat,
+--  lng||' '||lat as coord_pair
+-- from @trails_parquet
+-- (file_format => ff_parquet)
+-- order by point_id;
+
+
+-- Notice that the use of the stage and file format are very similar to the original. The column definitions require a bit of transposition on column name, and the table definition is a little more strict in requiring you to define the data types with CAST syntax (:: is CASTING). 
+
+
+create or replace external table mels_smoothie_challenge_db.trails.T_CHERRY_CREEK_TRAIL(
+	POINT_ID number as ($1:sequence_1::number),
+	TRAIL_NAME varchar(100) as  ($1:trail_name::varchar),
+	LNG number(11,8) as ($1:latitude::number(11,8)),
+	LAT number(11,8) as ($1:longitude::number(11,8)),
+	COORD_PAIR varchar(50) as (lng::varchar||' '||lat::varchar)
+) 
+location= @mels_smoothie_challenge_db.trails.trails_parquet
+auto_refresh = true
+file_format = mels_smoothie_challenge_db.trails.ff_parquet;
+
+
+
+-- 📓 Remember those Materialized Views?
+
+-- We can't use a Materialized View on any of our trails data because you can't put a materialized view on top of staged data. 
+
+-- Well, we left out an important detail. You CAN put a Materialized View over an External Table, even if that External Table is based on a Stage!!
+
+-- In other words, you CAN put a Materialized View over staged data, as long as you put an External Table in between them, first!
+
+
+
+-- 🎯 Create a Materialized View on Top of the External Table
+-- Actually, make it a Secure Materialized View(SMV) and name it SMV_CHERRY_CREEK_TRAIL. You can write the code yourself or you can use the code templates available from the CREATE menu. 
+create secure materialized view SMV_CHERRY_CREEK_TRAIL
+    -- comment = '<comment>'
+    as select * from mels_smoothie_challenge_db.trails.T_CHERRY_CREEK_TRAIL ;
+
+
+select * from SMV_CHERRY_CREEK_TRAIL;
+
+
+
+-- 📓  Iceberg Tables
+    -- Iceberg is an open-source table type, which means a private company does not own the technology. Iceberg Table technology is not proprietary. 
+    -- Iceberg Tables are a layer of functionality you can lay on top of parquet files (just like the Cherry Creek Trails file we've been using) that will make files behave more like loaded data. In this way, it's like a file format, but also MUCH more. 
+    -- Iceberg Table data will be editable via Snowflake! Read that again. Not just the tables are editable (like the table name), but the data they make available (like the data values in columns and rows). So, you will be able to create an Iceberg Table in Snowflake, on top of a set of parquet files that have NOT BEEN LOADED into Snowflake, and then run INSERT and UPDATE statements on the data using SQL 🤯. 
+
+    -- Iceberg Tables will make Snowflake's Data Lake options incredibly powerful!!
+
+    
+-- THIS CHANGES EVERYTHING
+
+    -- People sometimes think of Snowflake as a solution for structured, normalized data (which they often call a Data Warehouse). For a while, people said Data Lakes were the only path forward. Lately, many people say the best solution is a Data Lakehouse (they're just mushing the two terms together and saying you need both).
+    
+    -- Snowflake can be all of those things and Iceberg tables will be an amazing addition. 
+    
+    
+    
+-- Watch the video below if you want to see a bit more about what's coming soon!
+    -- https://www.youtube.com/watch?v=Kz5cWY_vRwU
+
+    --external volumes hold file data n metadata
+    --ICEBERG is more similar to DELTA format
+
+
+    -- https://www.snowflake.com/blog/5-reasons-apache-iceberg/
+
+
+--     You may notice a nuance here.  The nuance is this - first Snowflake announced they would have an Iceberg FORMAT as a type of Snowflake External table. That use of Iceberg would not allow updates and inserts.
+
+-- Later, Snowflake announced Iceberg tables as a new kind of object, not a type of External Table, but it's own thing. The whole-new-thing Iceberg tables are the ones that will enable updates and inserts. 

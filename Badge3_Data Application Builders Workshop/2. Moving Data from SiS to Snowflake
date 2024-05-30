@@ -1,0 +1,61 @@
+-- 🥋 Remove the SelectBox
+
+
+-- 🥋 Focus on the FRUIT_NAME Column
+-- use the import statement "from snowflake.snowpark.functions import col" and select only the required col from the table read
+
+
+-- 🥋 Add a Multiselect 
+
+
+-- 🥋 Cleaning Up Empty Brackets using the if clause on  "ingredients_list"
+
+
+--🥋 Create a Place to Store Order Data in a table
+create or replace table SMOOTHIES.PUBLIC.ORDERS(
+INGREDIENTS varchar(200)
+)
+
+-- 📓 Changing the LIST to a STRING
+
+
+-- 📓 How a FOR LOOP Block Works to make a list into String
+
+
+-- 🥋 Improve the String Output y adding a space in between the list of values in the for loop
+
+--🥋 Build a SQL Insert Statement to insert the records into ORDERS table & Test It
+-- my_insert_stmt = """ insert into smoothies.public.orders(ingredients)
+--             values ('""" + ingredients_string + """')"""
+
+-- st.write(my_insert_stmt)
+
+
+insert into smoothies.public.orders(ingredients) values ('Cantaloupe Dragon Fruit ');
+select * from smoothies.public.orders;
+
+
+-- 🥋 Insert the Order into Snowflake
+ --    if ingredients_string:
+ --        session.sql(my_insert_stmt).collect()
+	-- st.success('Your Smoothie is ordered!', icon="✅")
+
+
+select * from smoothies.public.orders;
+--The above records show that every time we select a single fruit it keeps on adding records. This will be fixed next
+
+
+--🥋 Truncate the Orders Table
+truncate table smoothies.public.orders;
+
+-- 🥋 Add a Submit Button
+-- time_to_insert =st.button("Submit Order")
+-- if time_to_insert:
+--     session.sql(my_insert_stmt).collect()
+--     st.success('Your Smoothie is ordered!', icon="✅"
+
+
+
+---Now check that orders are correct with exact elelemts only in 1 row
+
+select * from smoothies.public.orders;

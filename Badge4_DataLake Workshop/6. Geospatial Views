@@ -1,0 +1,158 @@
+-- 🥋 Look at the Parquet Data
+select $1 
+from @MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.TRAILS_PARQUET 
+(file_format => ff_parquet);
+
+-- {
+--   "elevation": 1.580000000000000e+03,
+--   "latitude": -1.050083300000000e+02,
+--   "longitude": 3.975432000000000e+01,
+--   "sequence_1": 2,
+--   "sequence_2": 3525,
+--   "trail_name": "Cherry Creek Trail"
+-- }
+
+select 
+$1:sequence_1 as sequence_1,
+$1:trail_name as trail_name,
+$1:latitude as latitude,
+$1:longitude as longitude,
+$1:sequence_2 as sequence_2,
+$1:elevation as elevation
+from @MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.TRAILS_PARQUET 
+(file_format => ff_parquet);
+
+--Latitude and Longitude are flipped and also scientific notation is wrong.
+
+
+-- 🥋 Use a Select Statement to Fix Some Issues
+    -- According to some online blog posts, you don't need more than 8 decimal points on coordinates to get accuracy to within a millimeter. Remember that Latitudes are between 0 (the equator)  and 90 (the poles) so no more than 2 digits are needed left of the decimal for latitude data.
+    
+    -- Longitudes are between 0 (the prime meridian) and 180. So no more than 3 digits are needed to the left of the decimal for longitude data.
+    
+    -- If we cast both longitude and latitude data as NUMBER(11,8) we should be safe.  We have included the code for this select statement below. 
+    
+--Nicely formatted trail data
+select 
+ $1:sequence_1 as point_id,
+ $1:trail_name::varchar as trail_name,
+ $1:latitude::number(11,8) as lng, --remember we did a gut check on this data
+ $1:longitude::number(11,8) as lat
+from @trails_parquet
+(file_format => ff_parquet)
+order by point_id;
+
+
+
+ -- 🥋 Test One of the Points in WKT Playground in https://clydedacruz.github.io/openstreetmap-wkt-playground/
+
+-- 🎯 Create a View Called CHERRY_CREEK_TRAIL
+create view MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.CHERRY_CREEK_TRAIL as
+select 
+ $1:sequence_1 as point_id,
+ $1:trail_name::varchar as trail_name,
+ $1:latitude::number(11,8) as lng, --remember we did a gut check on this data
+ $1:longitude::number(11,8) as lat
+from @trails_parquet
+(file_format => ff_parquet)
+order by point_id;
+
+
+ -- 🥋 Use || to Chain Lat and Lng Together into Coordinate Sets!
+ --Using concatenate to prepare the data for plotting on a map
+select top 100 
+ lng||' '||lat as coord_pair
+,'POINT('||coord_pair||')' as trail_point
+from cherry_creek_trail;
+
+
+-- The coord_pairs could come in very handy so we should add this column to our view! To add a column, you have to replace the old view. 
+--To add a column, we have to replace the entire view
+--changes to the original are shown in red
+create or replace view cherry_creek_trail as
+select 
+ $1:sequence_1 as point_id,
+ $1:trail_name::varchar as trail_name,
+ $1:latitude::number(11,8) as lng,
+ $1:longitude::number(11,8) as lat,
+ lng||' '||lat as coord_pair
+from @trails_parquet
+(file_format => ff_parquet)
+order by point_id;
+
+
+-- 🥋 Let's Collapse Sets Of Coordinates into Linestrings! 
+-- We can use Snowflakes LISTAGG function and the new COORD_PAIR column to make LINESTRINGS we can paste into WKT Playground! 
+
+-- Let's remember the syntax for LINESTRINGS. 
+
+-- LINESTRING(
+-- Coordinate Pair
+-- COMMA
+-- Coordinate Pair
+-- COMMA
+-- Coordinate Pair
+-- (etc)
+-- ) 
+
+
+
+
+-- 🥋 Run this SELECT and Paste the Results into WKT Playground!
+select 
+'LINESTRING('||
+listagg(coord_pair, ',') 
+within group (order by point_id)
+||')' as my_linestring
+from cherry_creek_trail
+where point_id <= 10
+group by trail_name;
+
+-- Copy the results from Snowflake and paste them into WKT Playground to see the LineString you created by rolling up all the coordinates into a list. You'll see a small portion of the trail displayed over Denver's Confluence Park. 
+
+
+
+-- 🎯 Can You Make The Whole Trail into a Single LINESTRING?  from Franktown to Confluence Park
+select 
+'LINESTRING('||
+listagg(coord_pair, ',') 
+within group (order by point_id)
+||')' as my_linestring
+from cherry_creek_trail
+group by trail_name;
+
+
+-- 🥋 Look at the geoJSON Data
+select $1 
+from @MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.TRAILS_GEOJSON 
+(file_format => ff_json);
+
+
+-- 🥋 Normalize the Data Without Loading It!
+select
+$1:features[0]:properties:Name::string as feature_name
+,$1:features[0]:geometry:coordinates::string as feature_coordinates
+,$1:features[0]:geometry::string as geometry
+,$1:features[0]:properties::string as feature_properties
+,$1:crs:properties:name::string as specs
+,$1 as whole_object
+from @trails_geojson (file_format => ff_json);
+
+
+-- 🥋 Visually Display the geoJSON Data
+-- Again, we can manage and massage the data in Snowflake, but we can't really display it properly. So just as with the WKT formatted GeoSpatial data, we need another tool to visually display the data we store in Snowflake. For this exploration we'll go to geojson.io.
+
+-- Go to geojson.io website and paste whole_object column value to view the map trajectory
+
+
+
+-- 🎯 Create a View Called DENVER_AREA_TRAILS
+create view MELS_SMOOTHIE_CHALLENGE_DB.TRAILS.DENVER_AREA_TRAILS as
+select
+$1:features[0]:properties:Name::string as feature_name
+,$1:features[0]:geometry:coordinates::string as feature_coordinates
+,$1:features[0]:geometry::string as geometry
+,$1:features[0]:properties::string as feature_properties
+,$1:crs:properties:name::string as specs
+,$1 as whole_object
+from @trails_geojson (file_format => ff_json);

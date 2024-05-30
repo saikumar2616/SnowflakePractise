@@ -1,0 +1,90 @@
+-- 📓 Adding the Requests Python Library to our SniS Project
+    -- To add any package to a SniS app, you need two steps:
+    
+    -- 1) Add the library to the requirements.txt file so that Streamlit knows to install it when starting up the project. 
+    -- 2) Add the import statement to the body of the streamlit_app.py file so it is ready to be used in the code. 
+    -- Keep these rules in mind also. 
+    
+    -- Anytime you change the streamlit_app.py file, and commit the changes in GitHub, the app will automatically start using the changes.
+    -- However, anytime you make changes to the requirements.txt file, you will need to reboot the app. 
+
+
+-- 🥋 Let's Call the Fruityvice API from Our SniS App!
+    -- import requests
+    -- fruityvice_response = requests.get("https://fruityvice.com/api/fruit/watermelon")
+    -- st.text(fruityvice_response)
+
+
+-- 🥋 Let's Expose the JSON Data Inside the Response Object
+    -- st.text(fruityvice_response.json())
+
+
+-- 🥋 Let's Put the JSON into a Dataframe
+    -- fv_df = st.dataframe(data = fruityvice_response.json(), use_container_width=True)
+
+-- 🥋 Let's Get the Fruityvice Data to Show Data for the Fruits Chosen
+
+--🥋 Use Our fruit_chosen Variable in the API Call
+
+--📓 Not Every Fruit Will be Found. So solving by adding a new column 
+
+-- 🎯 Let's Add the SEARCH_ON Field to Our FRUIT_OPTIONS Table
+select * from smoothies.public.orders;
+
+Alter table smoothies.public.fruit_options
+add column  SEARCH_ON TEXT;
+
+update smoothies.public.fruit_options
+set search_on = FRUIT_NAME;
+
+select * from smoothies.public.fruit_options;
+
+update smoothies.public.fruit_options
+set search_on='Apple'
+where FRUIT_NAME = 'Apples'
+
+
+
+-- Go down in the site "https://fruityvice.com/" and give "api/fruit/all" to get all the fruit apis
+-- You don't have to do all the rows, but at least do Apples, Blueberries, Jack Fruit, Raspberries and Strawberries. 
+update smoothies.public.fruit_options
+set search_on='Blueberry'
+where FRUIT_NAME = 'Blueberries';
+
+update smoothies.public.fruit_options
+set search_on='Jackfruit'
+where FRUIT_NAME = 'Jack Fruit';
+
+update smoothies.public.fruit_options
+set search_on='Raspberry'
+where FRUIT_NAME = 'Raspberries';
+
+update smoothies.public.fruit_options
+set search_on='Strawberry'
+where FRUIT_NAME = 'Strawberries';
+
+
+-- 🥋 Add the New SEARCH_ON Column to the Dataframe that feeds the Multiselect
+    -- my_dataframe = session.table("smoothies.public.fruit_options").select(col("FRUIT_NAME"), col("SEARCH_ON"))
+    -- st.dataframe(data=my_dataframe, use_container_width=True)
+    -- st.stop()
+
+-- 🎯 Bring In Pandas 
+    -- #Convert the snowpark dataframe to a pandas dataframe so we can use the LOC function
+    -- pd_df = my_dataframe.to_pandas()
+    -- st.dataframe(pd_df)
+    -- st.stop()
+
+
+-- 🥋 A Strange-Looking Statement That Will Get Us the "Search On" Value
+    -- search_on=pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+    -- st.write('The search value for ', fruit_chosen,' is ', search_on, '.')
+
+    -- You can read more about loc and iloc functions here: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.loc.html
+
+
+-- 🎯 Preparing Records for Your Final DORA Check
+select * from orders;
+
+
+-- 🥋 Making Use of the SEARCH_ON Value

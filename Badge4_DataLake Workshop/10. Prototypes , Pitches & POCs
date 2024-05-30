@@ -1,0 +1,16 @@
+-- 📓 Rapid Prototyping with Non-Loaded Data was the Perfect Approach!
+
+    -- Zena and Mel were so smart not to spend a lot of time prepping, cleansing, normalizing, and loading their data.
+    
+    -- After all, doing that would have slowed them down and, in the end, the time could have been wasted if their proposals were rejected.
+    
+    -- Mel's parents, Igor and Melanie, saw the prototypes created by Zena and Mel and were happy to approve them. 
+    
+    -- There are many great use cases for non-loaded data:
+        -- Rapid prototyping and proof of concept development (like we saw with Zena and Mel's projects)
+        -- Unstructured Data that cannot be stored in traditional tables (like Zena needed in order to access the clothing images)
+        -- Data used for mining and exploration by Data Scientists in prototyping possible AI/ML Models
+        -- Data that cannot be moved by a company because of a regulatory restrictions
+
+
+-- 🖼️ Melanie and Igor are Super Excited about the New Project!

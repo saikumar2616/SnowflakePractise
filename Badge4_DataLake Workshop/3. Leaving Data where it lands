@@ -1,0 +1,179 @@
+-- 📓 Knowing WHEN to Leave Data Where It Lands
+    -- So, if we can reach through our External Stages and access data where it is, without loading it into tables, why don't we ALWAYS do that?
+    
+    -- And if we shouldn't ALWAYS do that, how will we know when to LEAVE IT (and not load it) and when NOT to LEAVE IT (and instead, load it)?
+    
+    -- This is not easy to answer. The answer will depend on a lot of factors. For now, we can show you HOW to leave the data where it lands, even though we can't answer the WHENs and the WHYs for you. 
+
+    -- In this lesson, you'll learn different things you can do  with data even when you don't load it. We'll call it "non-loaded" so that we can separate the concept of data that is loaded into Snowflake and then output back into a stage using an "unload" process. This data that is NEVER loaded, we'll call "non-loaded." 
+
+
+-- 🥋 List Commands Versus Select Statements 
+list @ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_ZMD;
+
+
+-- 📓 Simple Selects on Non-Loaded Data
+select $1 
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_zmd; 
+
+-- 📓 One File at a Time?
+-- 🥋 Query Data in Just One File at a Time 
+select $1 
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_zmd/swt_product_line.txt; 
+select $1 
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_zmd/sweatsuit_sizes.txt; 
+select $1
+from @ZENAS_ATHLEISURE_DB.PRODUCTS.uni_klaus_zmd/product_coordination_suggestions.txt; 
+
+
+-- 📓 What is Going On Here?
+
+-- 📓 How Can We Tell Snowflake More about the Structure of Our File?
+
+-- 📓 Wait, I Still Don't Know What's Going on in This File!
+
+
+-- 🥋 Create an Exploratory File Format 
+create file format ZENAS_ATHLEISURE_DB.PRODUCTS.zmd_file_format_1
+RECORD_DELIMITER = '^';
+
+
+-- 🥋 Use the Exploratory File Format in a Query
+select $1
+from @uni_klaus_zmd/product_coordination_suggestions.txt
+(file_format => zmd_file_format_1);
+
+
+-- 📓 An Alternate Theory
+    -- What if the carets aren't the row separators? What if they are the column separators, instead?
+    
+    -- Let's create a second exploratory file format, and see what things look like when we use that one. 
+
+
+-- 🥋 Testing Our Second Theory
+create file format zmd_file_format_2
+FIELD_DELIMITER = '^';  
+
+select $1, $2, $3, $4 , $10 , $11
+from @uni_klaus_zmd/product_coordination_suggestions.txt
+(file_format => zmd_file_format_2);
+
+-- 🥋 A Third Possibility?
+    -- What if the carets separate records and a different symbol is used to separate the columns? Can you write a new File Format  (call it zmd_file_format_3) to make the results look like this? 
+create or replace file format zmd_file_format_3
+FIELD_DELIMITER = '='
+RECORD_DELIMITER = '^'; 
+
+select $1, $2
+from @uni_klaus_zmd/product_coordination_suggestions.txt
+(file_format => zmd_file_format_3);
+
+
+-- 📓 Those Exploratory File Formats Could Be More Useful
+
+-- 🎯 Revise zmd_file_format_1
+create or replace file format ZENAS_ATHLEISURE_DB.PRODUCTS.zmd_file_format_1
+RECORD_DELIMITER = ';';
+-- Field_delimiter = '\t';
+
+select $1 as sizes_available
+from @uni_klaus_zmd/sweatsuit_sizes.txt
+(file_format => zmd_file_format_1 );
+
+
+
+-- 🎯 Revamp zmd_file_format_2
+create or replace file format zmd_file_format_2
+FIELD_DELIMITER = '|'
+RECORD_DELIMITER=';'
+TRIM_SPACE=TRUE;  
+
+
+select $1 , $2, $3 
+from @uni_klaus_zmd/swt_product_line.txt
+(file_format => zmd_file_format_2 );
+
+
+--🥋 Dealing with Unexpected Characters
+    -- In SQL we can use ASCII references to deal with these characters. 
+        -- 13 is the ASCII for Carriage return
+        -- 10 is the ASCII for Line Feed
+
+
+    -- SQL has a function, CHR() that will allow you to reference ASCII characters by their numbers.  So, chr(13) is the same as the Carriage Return character and chr(10) is the same as the Line Feed character. 
+
+     --    In Snowflake, we can CONCATENATE two values by putting || between them (a double pipe). So we can look for CRLF by telling Snowflake to look for:
+     -- chr(13)||chr(10)
+
+select chr(13) , chr(10) ,chr(13) || chr(10);
+
+--File format cannot fix these issues . So we should fix in the select as below:
+select REPLACE($1, chr(13) || chr(10)) as sizes_available
+from @uni_klaus_zmd/sweatsuit_sizes.txt
+(file_format => zmd_file_format_1 );
+
+-- 📓 Uh Oh - One more CRLF Issue!    Did you see Row 19? 
+select REPLACE($1, chr(13) || chr(10)) as sizes_available
+from @uni_klaus_zmd/sweatsuit_sizes.txt
+(file_format => zmd_file_format_1 )
+where sizes_available<> '';
+
+-- 🥋 Convert Your Select to a View
+create view zenas_athleisure_db.products.sweatsuit_sizes as 
+select REPLACE($1, chr(13) || chr(10)) as sizes_available
+from @uni_klaus_zmd/sweatsuit_sizes.txt
+(file_format => zmd_file_format_1 )
+where sizes_available<> '';
+
+select  * from zenas_athleisure_db.products.sweatsuit_sizes;
+
+
+-- 🎯 Make the Sweatband Product Line File Look Great!
+
+create or replace file format zmd_file_format_2
+FIELD_DELIMITER = '|'
+RECORD_DELIMITER=';'
+TRIM_SPACE=TRUE;  
+
+
+select REPLACE($1, chr(13) || chr(10)) as PRODUCT_CODE, 
+REPLACE($2, chr(13) || chr(10)) as HEADBAND_DESCRIPTION, 
+REPLACE($3, chr(13) || chr(10)) as WRISTBAND_DESCRIPTION , 
+from @uni_klaus_zmd/swt_product_line.txt
+(file_format => zmd_file_format_2 )
+where PRODUCT_CODE<> '' and HEADBAND_DESCRIPTION <> '' and WRISTBAND_DESCRIPTION <>'';
+
+
+create or replace view zenas_athleisure_db.products.SWEATBAND_PRODUCT_LINE as
+select REPLACE($1, chr(13) || chr(10)) as PRODUCT_CODE, 
+REPLACE($2, chr(13) || chr(10)) as HEADBAND_DESCRIPTION, 
+REPLACE($3, chr(13) || chr(10)) as WRISTBAND_DESCRIPTION , 
+from @uni_klaus_zmd/swt_product_line.txt
+(file_format => zmd_file_format_2 )
+where PRODUCT_CODE<> '' and HEADBAND_DESCRIPTION <> '' and WRISTBAND_DESCRIPTION <>'';
+
+
+
+-- 🎯 Make the Product Coordination Data Look great!
+
+create or replace file format zmd_file_format_3
+FIELD_DELIMITER = '='
+RECORD_DELIMITER = '^'; 
+
+select  REPLACE($1, chr(13) || chr(10)) as PRODUCT_CODE ,
+REPLACE($2, chr(13) || chr(10)) as HAS_MATCHING_SWEATSUIT
+from @uni_klaus_zmd/product_coordination_suggestions.txt
+(file_format => zmd_file_format_3)
+where PRODUCT_CODE<>'' and HAS_MATCHING_SWEATSUIT<>'';
+
+
+create or replace view zenas_athleisure_db.products.SWEATBAND_COORDINATION as
+select  REPLACE($1, chr(13) || chr(10)) as PRODUCT_CODE ,
+REPLACE($2, chr(13) || chr(10)) as HAS_MATCHING_SWEATSUIT
+from @uni_klaus_zmd/product_coordination_suggestions.txt
+(file_format => zmd_file_format_3)
+where PRODUCT_CODE<>'' and HAS_MATCHING_SWEATSUIT<>'';
+
+
+
+-- A directory table is an implicit object layered on a stage (not a separate database object) and is conceptually similar to an external table because it stores file-level metadata about the data files in the stage. A directory table has no grantable privileges of its own.

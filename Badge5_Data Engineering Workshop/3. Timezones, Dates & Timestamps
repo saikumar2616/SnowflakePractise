@@ -1,0 +1,214 @@
+-- 📓  Time Zones Around the World
+    -- Many times you will see a time or time zone listed using a code like GMT+3 or GMT-4. The first example, GMT+3 could be read as, "Whatever time it is in Greenwich, England, plus 3 hours." The second example, GMT-4 could be read as, "Whatever time it is in Greenwich, England, minus 4 hours."
+    
+    -- But people who live in Ghana, the Gambia or Greenland might not like referring to their home time zone by comparing it to Greenwich, England. This is one of several reasons UTC was created. UTC is a less UK-centric way of talking about time even though GMT+0 and UTC+0 result in the same timestamps.  
+    -- UTC stands for Universal Time, Coordinated (or Universal Coordinated Time, if you prefer).
+    -- The same time zone as GMT+0/UTC+0 is sometimes also called Zulu Time. This is based on military parlance where the letter Z is referred to as "Zulu." The Zulu people of KwaZulu-Natal actually happen to be in UTC+2.
+    -- You'll need to know a few more initialisms for this lesson. 
+                -- NTZ means "No Time Zone." 
+                -- LTZ means "Local Time Zone." 
+
+
+-- 📓 UTC Timestamp Storage Parts/Format
+
+                -- YYYY-MM-DD T HH:MM:SS.SSS OFFSET DIRECTION HH:MI
+
+        -- YYYY means the 4-digit Year. 
+        -- MM means the 2-digit Month. 
+        -- DD means the 2-digit Day. 
+        -- HH is for the hour, usually on a 24 hour clock. 
+        -- MI is for the 2-digit Minutes past the hour. 
+        -- SS.SSS stands for 2-digit Seconds and 3-digit Milliseconds. 
+        -- +/- tells you the DIRECTION of OFFSET from UTC+0
+        -- HH:MI shows the offset hour and minute amount that the time represents from UTC. 
+
+
+-- 📓  Kishore & Agnie's LTZ
+SELECT current_timestamp();     -----> GIVE THE -0600 AT THE END WHICH is the same thing as UTC-6. This depends on the zone snowflake is using 
+
+select current_timestamp
+
+-- 📓 Controlling Time Zone 
+-- Even while your trial account has a default time zone of "America/Los_Angeles" (UTC-7), you can change the time zone of each worksheet, independently. 
+
+
+
+-- 📓 Comparing Timestamps Stored in LTZ to NTZ
+
+ 
+
+-- 🥋 Change the Time Zone for Your Current Worksheet
+--what time zone is your account(and/or session) currently set to? Is it -0700?
+select current_timestamp();
+
+--worksheets are sometimes called sessions -- we'll be changing the worksheet time zone
+alter session set timezone = 'UTC';
+select current_timestamp();
+
+--how did the time differ after changing the time zone for the worksheet?
+alter session set timezone = 'Africa/Nairobi';
+select current_timestamp();
+
+alter session set timezone = 'Pacific/Funafuti';
+select current_timestamp();
+
+alter session set timezone = 'Asia/Shanghai';
+select current_timestamp();
+
+--show the account parameter called timezone
+show parameters like 'timezone';
+
+
+
+-- 📓 Time Zone Names You Can Use
+    -- Snowflake uses the IANA list. You can see it here: https://data.iana.org/time-zones/tzdb-2021a/zone1970.tab
+    
+
+
+
+-- 📓 Time Zones in Agnie's Data
+-- If we look at the records in our LOGS view we can explore the time zone information in the log dates.  You should be aware that how the data is presented and how the data is stored can be different, so make sure you know how the formatting options work.  
+select * from logs;
+
+
+-- When no time zone is captured, it's hard to know when the events actually happened. There are many possibilities. For example, any of the below scenarios could be true:
+
+    -- Datetime info was captured in the players' local time, but the time zone info was lost along the way. 
+    -- Datetime info was captured in the players' local time, but the data was converted to UTC before being made available to Agnie.
+    --  The game captured the datetime info in the server's default time, but the server's time zone information was lost along the way. 
+    --  The game captured the datetime info in the server's default time, but the data was converted to UTC before being made available to Agnie.
+    --  Some other capture and convert/loss scenario. 
+    -- In short, the lack of a timezone can mean we know the time zone and it is in a standardized, zero-offset form OR it can mean we don't know what the original time zone was. 
+
+-- It can also sometimes mean that the time zone is stored in a separate column and you are expected to combine the two values when you compare two different timestamps. 
+
+
+
+-- 📓 How Can We Find Out More About the Timezone of Agnie's Log Data? 
+-- The team needs to find out how the datetime data is being captured.  There are common methods for learning about source data. 
+        --     Ask someone who knows, or might know. 
+        --     Look at some documentation, somewhere.
+        --     Create your own test records and compare what you know to what flows through. 
+-- Most teams will use a combination of all three of the methods. Sometimes a team will use one method to start, and another to confirm.
+
+
+
+-- 🖼️ The Team Members Each Take an "Action Item"
+
+
+-- 🖼️ Agnie Checks the Docs and Message Boards
+        -- Agnie searches the online documentation of the game platform but isn't able to learn how the datetime_iso8601 data is captured and stored. Different message board postings seem to contradict each other.
+        
+        -- She does find a list of fields she can add to the feed right away which is cool information, even if it wasn't actually what she was looking for. The list has a column that indicates which fields can be added for now and which are planned for future releases. She emails a link to the information to Kishore and Tsai. 
+        
+-- 🖼️ Kishore Generates Test Data
+        -- Kishore has his sister, Prajina, log in to the game for a few minutes of play time. As Prajina plays, Kishore keeps notes regarding the local times she starts and stops playing so that he can compare those events to what appears in the data they download next time.    
+        -- He also looks over the list of available fields sent by Agnie. He decides the AGENT field isn't really needed but the IP_ADDRESS could be very helpful. He messages Tsai and Agnie his thoughts on the updated column list. 
+
+-- 🖼️ Tsai Finds a Contact Who Works On the Game Platform
+        -- A few days later, Tsai is able to get in touch with a member of game platform development team. The platform developer promises to research how the datetime_iso8601 field is captured, and see what they can uncover about whether the information is converted to UTC before being stored.
+        
+        -- The developer is able to confirm that an LTZ field won't be available in the feed for another 6 to 8 months. If Kishore and Agnie want that information in their data, they'll have to figure out a different way to get it.  
+
+
+
+-- 🖼️ Agnie Downloads an Updated Log File!
+
+-- 🎯 CHALLENGE: Update Your Process to Accommodate the New File
+show stages;
+
+list @UNI_KISHORE;    -- new file ------s3://uni-kishore/updated_feed/DNGW_updated_feed_0_0_0.json
+
+select $1 , $2 , $3,$4 
+from  @UNI_KISHORE/updated_feed/DNGW_updated_feed_0_0_0.json;
+
+
+select * from GAME_LOGS;
+
+
+
+-- 🥋 Load the File Into The Table
+copy into AGS_GAME_AUDIENCE.raw.game_logs
+from @uni_kishore/updated_feed/DNGW_updated_feed_0_0_0.json
+file_format = (format_name = ff_json_logs);
+
+
+
+select raw_log , 
+raw_log:agent ::text ,
+raw_log:ip_address ::text 
+from GAME_LOGS;
+
+
+--logs view works but doesnt populate the ip_address
+
+
+-- 🎯 CHALLENGE: Filter Out the Old Rows
+select raw_log , 
+raw_log:agent ::text ,
+raw_log:ip_address ::text 
+from GAME_LOGS where raw_log:agent is null ;
+
+select * from logs where agent is null;
+
+
+-- 📓 Filter Out the Old Records
+    -- Remember that the first set of records included the AGENT field, but in the second set of records would have an empty AGENT value. 
+    -- The first set of records did NOT include IP_ADDRESS, but in the second set of records, there should be an IP_ADDRESS. 
+    -- You may see the term "schema-on-read" noted in some articles and posts as a great benefit Snowflake is able to provide. In a sense, you are seeing schema-on-read in action, here, because we can load anything we want into a VARIANT column, and parse it out (read it) differently over time. The change in the columns included (the schema difference in the two data loads) doesn't break anything because we are reading the structure after the load, not before or during the data load. 
+
+
+-- 🥋 Two Filtering Options
+--looking for empty AGENT column
+select * 
+from ags_game_audience.raw.LOGS
+where agent is null;
+
+--looking for non-empty IP_ADDRESS column
+select 
+RAW_LOG:ip_address::text as IP_ADDRESS
+,*
+from ags_game_audience.raw.LOGS
+where RAW_LOG:ip_address::text is not null;
+
+
+
+-- 🎯 CHALLENGE: Update Your LOGS View
+create or replace view AGS_GAME_AUDIENCE.raw.logs as 
+select 
+RAW_LOG:ip_address::text as IP_ADDRESS  ,
+RAW_LOG:user_event::text as user_event ,
+RAW_LOG:user_login::text as user_login ,
+RAW_LOG:datetime_iso8601::TIMESTAMP_NTZ as datetime_iso8601,
+RAW_LOG
+from AGS_GAME_AUDIENCE.raw.game_logs
+-- where RAW_LOG:IP_ADDRESS is not NULL;
+where raw_log:agent is null ;
+
+select * from AGS_GAME_AUDIENCE.raw.logs;
+
+
+
+-- 📓 Kishore's Test Rows - His Sister's Gaming  -----Time 15oct2022 7:22PM
+
+
+-- 🎯 Estimate the Expected Time Stamp and Find the Test Records.
+-- To convert Denver time to UTC, you need to subtract 7 hours from the current Denver time.
+
+ (YYYY-MM-DDTHH:MI:SS)   ---- 2022-10-15T12:22.00
+
+select * from AGS_GAME_AUDIENCE.raw.logs 
+where datetime_iso8601 > '2022-10-15' and datetime_iso8601 < '2022-10-16'; 
+
+
+
+-- 📓 Did You Calculate Timestamps Like We Did?
+    -- Based on the photo, did you guess that you should be looking for records for 2022-10-15 at around 7:22 PM? 
+    -- Did you know that ISO 8601 uses a 24-Hour clock? And did you know that 7:22PM is 19:22 on a 24-Hour clock?
+    -- Did you calculate that if the time captured had been converted to UTC, it would not show as 19:22 on Saturday evening, but as 1:22 -- very early on Sunday morning?
+
+
+select * from AGS_GAME_AUDIENCE.raw.logs 
+-- where datetime_iso8601 > '2022-10-15' and datetime_iso8601 < '2022-10-16'
+where user_login like '%pra%'; 
+

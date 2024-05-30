@@ -1,0 +1,86 @@
+create database SMOOTHIES;
+
+create table SMOOTHIES.public.FRUIT_OPTIONS(
+FRUIT_ID number,
+FRUIT_NAME varchar(25)
+);
+
+--Get the params  using a Load Data UI wizard and copy in the SQL below for custom file format  creation
+-- COPY INTO "SMOOTHIES"."PUBLIC"."FRUIT_OPTIONS"
+-- FROM '@"SMOOTHIES"."PUBLIC"."%FRUIT_OPTIONS"/__snowflake_temp_import_files__/'
+-- FILES = ('fruits_available_for_smoothies.txt')
+-- FILE_FORMAT = (
+--     TYPE=CSV,
+--     SKIP_HEADER=2,
+--     FIELD_DELIMITER=',',
+--     TRIM_SPACE=FALSE,
+--     FIELD_OPTIONALLY_ENCLOSED_BY=NONE,
+--     REPLACE_INVALID_CHARACTERS=TRUE,
+--     DATE_FORMAT=AUTO,
+--     TIME_FORMAT=AUTO,
+--     TIMESTAMP_FORMAT=AUTO
+-- )
+-- ON_ERROR=ABORT_STATEMENT
+-- PURGE=TRUE;
+
+Create or replace file format Smoothies.public.TWO_HEADERROW_PT_DELIM
+    TYPE=CSV,
+    SKIP_HEADER=2,
+    FIELD_DELIMITER='%',
+    TRIM_SPACE=FALSE,
+    FIELD_OPTIONALLY_ENCLOSED_BY=NONE,
+    REPLACE_INVALID_CHARACTERS=TRUE,
+    DATE_FORMAT=AUTO,
+    TIME_FORMAT=AUTO,
+    TIMESTAMP_FORMAT=AUTO
+
+
+
+--📓 Loading Files Using a COPY INTO Statement (A Review)
+--🥋 Use the File Format Name in the COPY INTO Statement
+---The below copy cpommand gives an error if we run as the columns in the file are not in the order of the table columns
+-- COPY INTO "SMOOTHIES"."PUBLIC"."FRUIT_OPTIONS"
+-- FROM '@"SMOOTHIES"."PUBLIC"."%FRUIT_OPTIONS"/__snowflake_temp_import_files__/'
+-- FILES = ('fruits_available_for_smoothies.txt')
+-- FILE_FORMAT = (FORMAT_NAME =  Smoothies.public.TWO_HEADERROW_PT_DELIM )  ----- TOK_CONSTANT_LIST  error if you forget to mention the paramname FORMAT_NAME
+-- ON_ERROR=ABORT_STATEMENT
+-- PURGE=TRUE;
+
+
+-- 📓 Using An Internal Stage
+-- Internal Stages or Snowflake-Managed Stage objects open up access to storage areas already in the Snowflake account,
+-- but not easily accessible until the storage area is given a name
+
+
+-- 🥋 Create the Internal Stage and Load the File Into It
+-- GO to schema in Ui >> reate >> Stage >> Snowflake Managed
+
+
+-- 🥋 Check to See if the File WOULD load.
+-- Use VALIDATION_MODE to check whether the file would load if you tried to load it directly from your new stage. 
+-- It won't work because the columns in the file are in a different order than the table. 
+-- 
+COPY INTO "SMOOTHIES"."PUBLIC"."FRUIT_OPTIONS"
+FROM @SMOOTHIES.PUBLIC.MY_INTERNAL_STAGE --'@"SMOOTHIES"."PUBLIC"."%FRUIT_OPTIONS"/__snowflake_temp_import_files__/'
+FILES = ('fruits_available_for_smoothies.txt')
+FILE_FORMAT = (FORMAT_NAME =  Smoothies.public.TWO_HEADERROW_PT_DELIM )  ----- TOK_CONSTANT_LIST  error if you forget to mention the paramname FORMAT_NAME
+ON_ERROR=ABORT_STATEMENT
+VALIDATION_MODE = RETURN_ERRORS --- Populates a error in the ERROR column while loading
+PURGE=TRUE;
+
+
+--🥋 Query the Not-Yet-Loaded Data Using the File Format
+SELECT $1, $2 
+FROM @SMOOTHIES.PUBLIC.MY_INTERNAL_STAGE/fruits_available_for_smoothies.txt
+(FILE_FORMAT => Smoothies.public.TWO_HEADERROW_PT_DELIM);
+
+
+
+-- 🥋 Reorder Columns During the COPY INTO LOAD
+-- The Snowflake DOCS cover the topic here: https://docs.snowflake.com/en/user-guide/data-load-transform#reorder-csv-columns-during-a-load
+COPY INTO "SMOOTHIES"."PUBLIC"."FRUIT_OPTIONS"
+FROM 
+(SELECT $2 as FRUIT_ID, $1 as FRUIT_NAME FROM @SMOOTHIES.PUBLIC.MY_INTERNAL_STAGE/fruits_available_for_smoothies.txt)
+FILE_FORMAT = (FORMAT_NAME= Smoothies.public.TWO_HEADERROW_PT_DELIM)
+ON_ERROR=ABORT_STATEMENT
+PURGE=TRUE;

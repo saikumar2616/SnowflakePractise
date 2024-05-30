@@ -1,0 +1,16 @@
+--- Sharing is more of a UI task done ompletly using provider Studio and Private sharing tabs under Data Products tab
+
+--🥋 Convert "Regular" Views to Secure Views
+-- only after changing the views to secure views, they will be visible to share and can be shared using the listings
+alter view intl_db.public.NATIONS_SAMPLE_PLUS_ISO
+set secure; 
+
+alter view intl_db.public.SIMPLE_CURRENCY
+set secure;
+
+
+-- NATIONS_SAMPLE_PLUS_ISO cannot be shared
+-- Because the NATIONS table comes from an Inbound Share (SNOWFLAKE_SAMPLE_DATA)
+-- Because you can't share a share
+
+show shares in account;
