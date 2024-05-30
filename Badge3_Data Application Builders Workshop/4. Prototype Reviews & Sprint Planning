@@ -1,0 +1,40 @@
+-- 📓  Stakeholders, Customers, Requirements & Prototypes
+
+-- 🥋 Add a Name Box for Smoothie Orders
+
+-- 🥋 Use the ALTER Command to Add a New Column to Your Orders Table
+alter table SMOOTHIES.PUBLIC.ORDERS add column NAME_ON_ORDER  varchar(100);
+
+-- 🥋 Writing the NAME_ON_ORDER Entry to the Snowflake Table(from Streamlit)
+-- my_insert_stmt = """ insert into smoothies.public.orders(ingredients,name_on_order)
+--             values ('""" + ingredients_string + """','""" + name_on_order + """')"""
+
+
+--🎯 Build a New SiS App! 
+-- Mel has decided he's just going make a second app that can be used by the kitchen staff to see open orders and then mark them complete when they've been filled and given to the customer.  We think you can do this on your own!! You can either create a whole new app or you can duplicate your existing app and edit it. Call your new app Pending Smoothie Orders.
+alter table SMOOTHIES.PUBLIC.ORDERS add column ORDER_FILLED   BOOLEAN  DEFAULT FALSE;
+
+
+--for testing
+update smoothies.public.orders
+       set order_filled = true
+       where name_on_order is null;
+
+-- 📓 Streamlit's Editable Dataframes!!
+-- Before it was called the data_editor, it was called the experimental_data_editor because it was still being tested. Then, when Streamlit released version 1.23.0 they asked users to stop using experimental_data_editor and start using the data_editor, instead.
+
+
+-- 🥋 Convert Your Dataframe to a Data Editor
+
+-- 🥋 Add a Submit Button
+
+-- 🥋 Add a Merge Statement called "when_matched". 
+  -- og_dataset = session.table("smoothies.public.orders")
+  --   edited_dataset = session.create_dataframe(editable_df)
+  --   og_dataset.merge(edited_dataset
+  --                    , (og_dataset['name_on_order'] == edited_dataset['name_on_order'])
+  --                    , [when_matched().update({'ORDER_FILLED': edited_dataset['ORDER_FILLED']})]
+  --                   )
+-- The logic works, but when Snowflake tries to MERGE the updates, it finds that we have duplicate rows. Your table might not have duplicate rows, but because of the way we designed our table, the potential for duplicates is there. We need to fix that!!
+
+-- If you do not see an error message, that's okay. You'll only see an error message if you have duplicate records and try to update one of the duplicates. In either case, we need to make changes that will avoid issues that could be caused by duplicate records. 

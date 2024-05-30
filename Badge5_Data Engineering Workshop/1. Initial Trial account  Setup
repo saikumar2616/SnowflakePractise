@@ -1,0 +1,21 @@
+-- Kishore's USERNAME in his Snowflake Account is KISHOREK (it's what he uses to login to Snowflake).
+
+-- He runs the following commands:
+
+alter user saikumar2616 set default_role = 'SYSADMIN';
+alter user saikumar2616 set default_warehouse = 'COMPUTE_WH';
+alter user saikumar2616 set default_namespace = 'UTIL_DB.PUBLIC';
+
+
+
+-- Data Engineers will use a role like SYSADMIN for most of their tasks. SYSADMIN is a creative role and Data Engineers are creative creators.
+-- Throughout this workshop, you should use SYSADMIN for any task that doesn't require ACCOUNTADMIN. 
+
+-- SYSADMIN should own any object you create. So databases, schemas, views, file formats, stages -- everything -- they should all be owned by the SYSADMIN role. 
+-- Data Engineers in most companies don't even have the ACCOUNTADMIN role. You may use this role a time or two, but not often. When in doubt, SYSADMIN is the role to choose! 
+
+-- Remember, you can set your default role to SYSADMIN, which is convenient for new worksheets and each time you login.
+
+-- Use a command like this: 
+
+-- ALTER USER <my user name> SET DEFAULT_ROLE = 'SYSADMIN';

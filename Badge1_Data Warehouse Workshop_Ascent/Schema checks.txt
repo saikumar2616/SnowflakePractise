@@ -1,0 +1,26 @@
+SELECT * 
+FROM GARDEN_PLANTS.INFORMATION_SCHEMA.SCHEMATA;
+
+-- 📓 What Did I Do Wrong? 
+-- Did you run the query and get unexpected results? Here are some potential mistakes:
+
+-- You have a typo in the schema name, like "WEGGIES" instead of "VEGGIES"
+-- You put the schemas in the wrong database, like UTIL_DB, instead of GARDEN_PLANTS
+-- You don't have your role set so that you can see the objects, like you created them using ACCOUNTADMIN, but your worksheet is set to SYSADMIN. 
+-- 📓 How Can I Fix Things? 
+-- Typo:     ALTER SCHEMA GARDEN_PLANTS.WEGGIES RENAME TO GARDEN_PLANTS.VEGGIES;
+
+-- Wrong Place:   ALTER SCHEMA DEMO_DB.VEGGIES RENAME TO GARDEN_PLANTS.VEGGIES;
+
+-- Cant Find:   Change the Role Setting on your worksheet or transfer the ownership of your object.
+
+
+
+SELECT * 
+FROM GARDEN_PLANTS.INFORMATION_SCHEMA.SCHEMATA
+where schema_name in ('FLOWERS','FRUITS','VEGGIES');
+
+
+SELECT count(*) as SCHEMAS_FOUND, '3' as SCHEMAS_EXPECTED 
+FROM GARDEN_PLANTS.INFORMATION_SCHEMA.SCHEMATA
+where schema_name in ('FLOWERS','FRUITS','VEGGIES'); 

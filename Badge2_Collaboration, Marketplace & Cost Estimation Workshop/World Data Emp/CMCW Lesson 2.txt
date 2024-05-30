@@ -1,0 +1,57 @@
+---shared data things
+ALTER database THAT_REALLY_COOL_SAMPLE_STUFF
+rename to snowflake_sample_data;
+
+
+
+---Task : dropp the shared database snowflake and get it back with a new name then alter. 
+-- But there is no drop option for the snowflake
+
+
+
+--grantiong the shared database acess to sysadmin as it was added using accountadmin
+grant imported privileges
+on database SNOWFLAKE_SAMPLE_DATA
+to role SYSADMIN;
+
+
+
+--------------------------------------------------
+
+--Check the range of values in the Market Segment Column
+SELECT DISTINCT c_mktsegment
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER;
+
+--Find out which Market Segments have the most customers
+SELECT c_mktsegment, COUNT(*)
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER
+GROUP BY c_mktsegment
+ORDER BY COUNT(*);
+
+
+
+-- Nations Table
+SELECT N_NATIONKEY, N_NAME, N_REGIONKEY
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.NATION;
+
+-- Regions Table
+SELECT R_REGIONKEY, R_NAME
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.REGION;
+
+-- Join the Tables and Sort
+SELECT R_NAME as Region, N_NAME as Nation
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.NATION 
+JOIN SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.REGION 
+ON N_REGIONKEY = R_REGIONKEY
+ORDER BY R_NAME, N_NAME ASC;
+
+--Group and Count Rows Per Region
+SELECT R_NAME as Region, count(N_NAME) as NUM_COUNTRIES
+FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.NATION 
+JOIN SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.REGION 
+ON N_REGIONKEY = R_REGIONKEY
+GROUP BY R_NAME;
+
+
+
+--set sysadmin as default user and select a warehouse using UI from myprofile

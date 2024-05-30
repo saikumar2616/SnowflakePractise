@@ -1,0 +1,66 @@
+--The data in the file, with no FILE FORMAT specified
+select $1
+from @util_db.public.like_a_window_into_an_s3_buket/LU_SOIL_TYPE.tsv;
+
+--Same file but with one of the file formats we created earlier  
+select $1, $2, $3
+from @util_db.public.like_a_window_into_an_s3_buket/LU_SOIL_TYPE.tsv
+(file_format => garden_plants.veggies.COMMASEP_DBLQUOT_ONEHEADROW);
+
+--Same file but with the other file format we created earlier
+select $1, $2, $3
+from @util_db.public.like_a_window_into_an_s3_buket/LU_SOIL_TYPE.tsv
+(file_format => garden_plants.veggies.PIPECOLSEP_ONEHEADROW );
+
+------------
+
+create or replace file format garden_plants.veggies.L8_CHALLENGE_FF 
+    TYPE = 'CSV'--csv is used for any flat file (tsv, pipe-separated, etc)
+    FIELD_DELIMITER = '0x09' --pipes as column separators
+    SKIP_HEADER = 1 --one header row to skipGARDEN_PLANTS.VEGGIES.PIPECOLSEP_ONEHEADROW
+
+
+
+select $1, $2, $3
+from @util_db.public.like_a_window_into_an_s3_buket/LU_SOIL_TYPE.tsv
+(file_format => garden_plants.veggies.L8_CHALLENGE_FF );
+
+----------
+
+Drop table  garden_plants.veggies.LU_SOIL_TYPE;
+
+create or replace table garden_plants.veggies.LU_SOIL_TYPE(
+SOIL_TYPE_ID number,	
+SOIL_TYPE varchar(15),
+SOIL_DESCRIPTION varchar(75)
+ ); 
+
+
+copy into GARDEN_PLANTS.veggies.LU_SOIL_TYPE
+from @util_db.public.like_a_window_into_an_s3_buket
+files = ( 'LU_SOIL_TYPE.tsv')
+file_format = ( format_name=L8_CHALLENGE_FF );
+
+
+select * from GARDEN_PLANTS.veggies.LU_SOIL_TYPE;
+
+
+
+-----------
+
+
+create or replace table garden_plants.veggies.VEGETABLE_DETAILS_PLANT_HEIGHT(
+plant_name varchar,
+UOM varchar(1),
+Low_End_of_Range number,
+High_End_of_Range number
+ ); 
+
+
+copy into GARDEN_PLANTS.veggies.VEGETABLE_DETAILS_PLANT_HEIGHT 
+from @util_db.public.like_a_window_into_an_s3_buket
+files = ( 'veg_plant_height.csv')
+file_format = ( format_name=COMMASEP_DBLQUOT_ONEHEADROW );
+
+
+select * from GARDEN_PLANTS.veggies.VEGETABLE_DETAILS_PLANT_HEIGHT;

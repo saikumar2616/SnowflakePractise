@@ -1,0 +1,107 @@
+-- 🏆 Always Explore Your Source Files
+
+-- Use a Creative Role
+    -- Data Engineers will use a role like SYSADMIN for most of their tasks. SYSADMIN is a creative role and Data Engineers are creative creators.
+    -- Throughout this workshop, you should use SYSADMIN for any task that doesn't require ACCOUNTADMIN. 
+    
+    -- SYSADMIN should own any object you create. So databases, schemas, views, file formats, stages -- everything -- they should all be owned by the SYSADMIN role. 
+
+
+-- Avoid Using All Powerful Roles to Create
+    -- Data Engineers in most companies don't even have the ACCOUNTADMIN role. You may use this role a time or two, but not often. When in doubt, SYSADMIN is the role to choose! 
+    
+    -- Remember, you can set your default role to SYSADMIN, which is convenient for new worksheets and each time you login.
+
+    
+-- Use a command like this: 
+-- ALTER USER <my user name> SET DEFAULT_ROLE = 'SYSADMIN';
+
+-- 🎯 Create the Project Infrastructure
+
+create database AGS_GAME_AUDIENCE;
+
+drop schema AGS_GAME_AUDIENCE.public;
+
+use AGS_GAME_AUDIENCE;
+create schema RAW;
+
+
+
+-- 🥋 Use a Code Template to Create a Table
+create table AGS_GAME_AUDIENCE.raw.game_logs(
+    Raw_log variant
+);
+
+CREATE STAGE uni_kishore 
+	URL = 's3://uni-kishore' 
+	DIRECTORY = ( ENABLE = true );
+
+
+list @uni_kishore;
+
+list @uni_kishore/kickoff;
+
+
+
+-- 🎯 Create a File Format
+use SYSADMIN;
+
+create file format AGS_GAME_AUDIENCE.RAW.FF_JSON_LOGS 
+    type = JSON 
+    strip_outer_array = true
+    --  [ formatTypeOptions ]
+    -- comment = '<comment>'
+    ;
+
+-- 📓 Exploring the File Before Loading It
+select $1 
+from @uni_kishore/kickoff
+(file_format => ff_json_logs);
+
+
+-- 🥋 Load the File Into The Table
+copy into AGS_GAME_AUDIENCE.raw.game_logs
+from @uni_kishore/kickoff
+file_format = (format_name = ff_json_logs);
+
+select * from  AGS_GAME_AUDIENCE.raw.game_logs;
+
+
+
+-- 🥋 Build a Select Statement that Separates Every Attribute into It's Own Column
+select 
+RAW_LOG:agent::text as Agent ,
+RAW_LOG:user_event::text as user_event ,
+*
+from AGS_GAME_AUDIENCE.raw.game_logs;
+
+
+-- {
+--   "agent": "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_6; en-US) AppleWebKit/534.18 (KHTML, like Gecko) Chrome/11.0.660.0 Safari/534.18",
+--   "datetime_iso8601": "2022-10-13T01:24:53Z",
+--   "user_event": "login",
+--   "user_login": "atamlett0"
+-- }
+
+
+select 
+RAW_LOG:agent::text as Agent ,
+RAW_LOG:user_event::text as user_event ,
+RAW_LOG:user_login::text as user_login ,
+RAW_LOG:datetime_iso8601::TIMESTAMP_NTZ as datetime_iso8601,
+RAW_LOG
+from AGS_GAME_AUDIENCE.raw.game_logs;
+
+
+-- 📓 Wrapping Selects in Views 
+-- 🎯 Create Your View
+create view AGS_GAME_AUDIENCE.raw.logs as 
+select 
+RAW_LOG:agent::text as Agent ,
+RAW_LOG:user_event::text as user_event ,
+RAW_LOG:user_login::text as user_login ,
+RAW_LOG:datetime_iso8601::TIMESTAMP_NTZ as datetime_iso8601,
+RAW_LOG
+from AGS_GAME_AUDIENCE.raw.game_logs;
+
+select * from AGS_GAME_AUDIENCE.raw.logs;

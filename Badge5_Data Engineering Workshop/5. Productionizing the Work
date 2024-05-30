@@ -1,0 +1,354 @@
+-- 📓 We Have A Data Pipeline!
+
+-- But our pipeline could also be improved. For example:
+    -- The step (#1) where Agnie loads the data into the S3 bucket could be automated. 
+    -- The step (#2) where Kishore runs the COPY INTO to move the files from the stage, into the RAW_LOGS table, could also be automated. 
+
+
+-- 📓 Automating Step 1: Agnie's Files Moved Into the Bucket (Already automated to save some cost)
+    -- Wanna hear some great news?  We already automated step 1 for you!!
+    -- If you set up a stage for this bucket, and run a LIST command several times, you'll be able to see that a new file is being added to the bucket every 5 minutes. 
+
+
+-- 🎯 Create A New Stage    
+create or replace stage AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE 
+URL = 's3://uni-kishore-pipeline'
+DIRECTORY = ( ENABLE = true );
+
+select SYSDATE() , current_timestamp(); 
+-- SYSDATE() retruns the UTC time zone 
+-- current_timestamp() retruns server time zone time
+
+list @AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE;
+
+
+-- 📓 Why Do the Files Disappear at Midnight UTC?
+-- We write the same set of files every 24 hours and we needed a way to keep the bucket from getting too full.
+
+
+
+-- 📓 Another Method (Very Cool) for Getting Template Code is to copy from any existing table
+-- 🎯 Create A New Raw Table! 
+create or replace TABLE AGS_GAME_AUDIENCE.RAW.PL_GAME_LOGS (
+	RAW_LOG VARIANT
+);
+
+
+-- 📓 You Are In the Process of Engineering a Pipeline
+-- 🎯 Create Your New COPY INTO
+copy into AGS_GAME_AUDIENCE.raw.PL_GAME_LOGS
+from @AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE
+file_format = (format_name = AGS_GAME_AUDIENCE.raw.ff_json_logs);
+
+select * from AGS_GAME_AUDIENCE.raw.PL_GAME_LOGS;  --This will change as the copy is performed and new files are loaded
+
+
+
+-- 📓 Idempotent COPY INTO
+-- COPY INTO is smart enough to know which files it already loaded and it doesn't load the same file.
+-- Snowflake is designed like this to help you. Without any special effort on your part, you have a process that doesn't double-load files.  In other words, it automatically helps you keep your processes IDEMPOTENT.
+-- But, what if, for some crazy reason, you wanted to double-load your files? 
+--     You could add a FORCE=TRUE; as the last line of your COPY INTO statement and then you would double the number of rows in your table. 
+-- Then, what if you wanted to start over and load just one copy of each file? 
+--     You could TRUNCATE TABLE PL_GAME_LOGS; , set FORCE=FALSE and run your COPY INTO again. 
+-- The COPY INTO is very smart, which makes it useful and efficient!! We aren't going to use the FORCE command in this workshop. We aren't going to truncate and reload to prove the stage and COPY INTO are colluding in your favor (they really do!), but we wanted you to know they are available to you for special situations. 
+
+
+
+-- 🎯 Create a Step 2 Task to Run the COPY INTO
+create or replace task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES
+	warehouse=COMPUTE_WH
+	schedule='10 minute'
+	as 
+        copy into AGS_GAME_AUDIENCE.raw.PL_GAME_LOGS
+        from @AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE
+        file_format = (format_name = AGS_GAME_AUDIENCE.raw.ff_json_logs);
+
+Execute task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES;
+
+
+select * from AGS_GAME_AUDIENCE.raw.PL_GAME_LOGS;  --This will change as the copy is performed and new files are loaded
+
+
+-- 📓  Step 3: The JSON-Parsing View
+-- Remember how we load the logs into a very simple table with just one column so that we can load just about anything and parse it apart later? 
+-- If yes, then you'll also remember that we called our JSON-Parsing view "LOGS" and it did the job of splitting one big JSON blob into different columns. 
+-- So now that we have a new raw table, we need a new JSON-Parsing view for that table, too. 
+
+
+-- 🎯 Create a New JSON-Parsing View
+-- {
+--   "datetime_iso8601": "2022-10-16 09:46:54.000",
+--   "ip_address": "66.166.132.124",
+--   "user_event": "login",
+--   "user_login": "bshimwell1ud"
+-- }
+
+create or replace view AGS_GAME_AUDIENCE.RAW.PL_LOGS(
+	IP_ADDRESS,
+	USER_EVENT,
+	USER_LOGIN,
+	DATETIME_ISO8601,
+	RAW_LOG
+) as 
+select 
+RAW_LOG:ip_address::text as IP_ADDRESS  ,
+RAW_LOG:user_event::text as user_event ,
+RAW_LOG:user_login::text as user_login ,
+RAW_LOG:datetime_iso8601::TIMESTAMP_NTZ as datetime_iso8601,
+RAW_LOG
+from AGS_GAME_AUDIENCE.raw.PL_GAME_LOGS;
+-- where RAW_LOG:IP_ADDRESS is not NULL;
+-- where raw_log:agent is null ;
+
+select * from AGS_GAME_AUDIENCE.RAW.PL_LOGS;
+
+
+-- 🎯 Modify the Step 4 MERGE Task !
+    -- Files from a different stage are being loaded into a different raw table and those rows are being parsed by a different JSON-Parsing view.  The one thing we are not changing is our DESTINATION table. That table is still going to be LOGS_ENHANCED and the task that loads that table is still going to be your Merge Task, LOAD_LOGS_ENHANCED.  
+    
+    -- The source stage is now UNI_KISHORE_PIPELINE instead of UNI_KISHORE.
+    -- The raw table being loaded is now PL_GAME_LOGS instead of GAME_LOGS. 
+    -- The original JSON-parsing view of LOGS has been replaced by PL_LOGS. 
+    -- The destination table has not changed. It should still be LOGS_ENHANCED.
+    -- Does any of the code need to be changed to make your merge use these new sources?  If so, change your merge code! 
+    
+    -- When you've made the changes, manually run your MERGE task and make sure it works to INSERT all those new rows into your LOGS_ENHANCED table. This is the only object that does not change. Our destination table remains the same, while all the source objects leading up to it have changed. 
+
+SELECT * FROM ENHANCED.LOGS_ENHANCED;  --162 ROWS
+
+create or replace task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED
+	warehouse=COMPUTE_WH
+	schedule='5 minute'
+	as MERGE INTO ENHANCED.LOGS_ENHANCED e
+USING (
+        SELECT logs.ip_address 
+        , logs.user_login as GAMER_NAME
+        , logs.user_event as GAME_EVENT_NAME
+        , logs.datetime_iso8601 as GAME_EVENT_UTC
+        , city
+        , region
+        , country
+        , timezone as GAMER_LTZ_NAME
+        , CONVERT_TIMEZONE( 'UTC',timezone,logs.datetime_iso8601) as game_event_ltz
+        , DAYNAME(game_event_ltz) as DOW_NAME
+        , TOD_NAME
+        from ags_game_audience.raw.PL_LOGS logs
+        JOIN ipinfo_geoloc.demo.location loc 
+        ON ipinfo_geoloc.public.TO_JOIN_KEY(logs.ip_address) = loc.join_key
+        AND ipinfo_geoloc.public.TO_INT(logs.ip_address) 
+        BETWEEN start_ip_int AND end_ip_int
+        JOIN ags_game_audience.raw.TIME_OF_DAY_LU tod
+        ON HOUR(game_event_ltz) = tod.hour
+    ) r --we'll put our fancy select here
+ON r.GAMER_NAME = e.GAMER_NAME
+and r.game_event_utc = e.game_event_utc
+and r.game_event_name = e.game_event_name
+WHEN NOT MATCHED THEN  ---inserts ONLY when do not match
+insert (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME) --list of columns
+values (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME);
+
+
+execute task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED;
+
+
+SELECT * FROM ENHANCED.LOGS_ENHANCED;  --626 ROWS
+
+-- 📓  Allowing Our Task to Run Itself
+    -- For Step 1 of our pipeline we have files being loaded into the external stage every 5 minutes. This is totally automated and your Snowflake Account is not paying for the compute time. This step is developed, managed, and paid for by Snowflake Education Services.  
+    
+    -- For Step 2, we have just defined a task that would run every 5 minutes, but we have never allowed it to run. Instead, we keep using the EXECUTE TASK command. This one is "paid for" by your trial account credits and therefore, can be expensive. If you are not careful you might implement it in a way you might regret. (e.g. Use a 4XL warehouse on a task set to run every minute and your trial will expire really quickly!) 
+    
+    -- Before releasing a TASK to run itself according to the schedule you set up, you should have some safeguards in place. 
+    
+    -- On the next page, you'll set up a Resource Monitor, which will help you monitor and control the costs that come from pipelines. 
+
+
+-- 📓 Forgotten Tasks Can Eat Up Credits, Fast!
+-- create a resource monitor to restrict the usage
+
+ 
+
+-- 🎯 Create a Resource Monitor to Shut Things Down After an Hour of Use
+
+-- 🎯 Truncate The Target Table
+-- Before we begin testing our new pipeline, TRUNCATE the target table ENHANCED.LOGS_ENHANCED so that we don't have the rows from our previous pipeline. Starting with zero rows gives us an easier way to check that our new processes work the way we intend. 
+truncate table enhanced.logs_enhanced;
+
+select * from enhanced.logs_enhanced; --0 rows
+
+
+
+-- 📓 The Current State of Things
+-- Our process is looking good. We have:
+
+-- Step 1 TASK (invisible to you, but running every 5 minutes)
+-- Step 2 TASK that will load the new files into the raw table every 5 minutes (as soon as we turn it on).
+-- Step 3 VIEW that is kind of boring but it does some light transformation (JSON-parsing) work for us.  
+-- Step 4 TASK  that will load the new rows into the enhanced table every 5 minutes (as soon as we turn it on).
+
+
+-- 🥋 Turn on Your Tasks!
+    -- You can suspend and resume tasks using the GUI. 
+    -- You can also resume and suspend them using worksheet code. 
+
+--Turning on a task is done with a RESUME command
+alter task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES resume;
+alter task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED resume;
+
+--Turning OFF a task is done with a SUSPEND command
+alter task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES suspend;
+alter task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED suspend;
+ 
+
+
+-- 📓  Relax!
+-- The team can relax now. The data load is automated! All those steps have become a PIPELINE!
+
+
+
+-- ❕You Have Tasks Running!
+
+
+-- 🥋 Let's Check Our Tasks
+    -- Navigate to the LOAD_LOGS_ENHANCED Task's page.
+    -- Note whether your TASK is owned by SYSADMIN, and whether it is running. If it is SCHEDULED, note the time it will next run.
+    -- Refresh the page after it has run again. Check to see if the TASK succeeded.
+    -- NOTE: If the task is not owned by SYSADMIN, you will have to SUSPEND it, change the ownership and then RESUME it. If the task is not running, run the ALTER command that ends in RESUME.
+
+
+    
+-- 🎯 Check on the GET_NEW_FILES Task
+    -- Use the same methods to check on your other scheduled task. Make sure it is running and succeeding!
+
+
+-- 🏆 Keeping Tallies in Mind
+-- A good Data Engineer will constantly be thinking about how many rows they expect so that if something weird happens, they will recognize it sooner. 
+
+
+    -- STEP 1: Check the number of files in the stage, and multiply by 10. This is how many rows you should be expecting. 
+    
+    -- STEP 2: The GET_NEW_FILES task grabs files from the UNI_KISHORE_PIPELINE stage and loads them into PL_GAME_LOGS. How many rows are in PL_GAME_LOGS? 
+    
+    -- STEP 3: The PL_LOGS view normalizes PL_GAME_LOGS without moving the data. Even though there are some filters in the view, we don't expect to lose any rows. How many rows are in PL_LOGS?
+    
+    -- STEP 4: The LOAD_LOGS_ENHANCED task uses the PL_LOGS view and 3 tables to enhance the data. We don't expect to lose any rows. How many rows are in LOGS_ENHANCED?
+
+-- NOTE: If you lose records in Step 4, it could be because the time zone lookup against IPINFO_GEOLOC failed. These records losses are considered acceptable in this phase of the project.
+
+
+
+-- 🥋 Checking Tallies Along the Way
+--Step 1 - how many files in the bucket?
+list @AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE;
+
+--Step 2 - number of rows in raw table (should be file count x 10)
+select count(*) from AGS_GAME_AUDIENCE.RAW.PL_GAME_LOGS;
+
+--Step 3 - number of rows in raw table (should be file count x 10)
+select count(*) from AGS_GAME_AUDIENCE.RAW.PL_LOGS;
+
+--Step 4 - number of rows in enhanced table (should be file count x 10 but fewer rows is okay because not all IP addresses are available from the IPInfo share)
+select count(*) from AGS_GAME_AUDIENCE.ENHANCED.LOGS_ENHANCED;
+
+
+
+
+page
+-- 📓 A Few Task Improvements
+-- As you were tracing your results through all the locations, did it occur to you that the timing could mess up your tallies? What if a file had just been added to the bucket, but had not been picked up by the GET_NEW_FILE task? What if some rows had been processed by the GET_NEW_FILES task but had not yet been processed by the LOAD_LOGS_ENHANCED task? 
+
+-- TASK DEPENDENCIES
+    -- One way we can improve this is through task dependencies. You can't control the Step 1 task -- in fact, you don't even know the name of it. But the Step 2 Task and the Step 4 Task are yours and you have full control over them. 
+    -- What if we ran GET_NEW_FILES every 5 minutes and then ran LOAD_LOGS_ENHANCED based on Snowflake telling us that GET_NEW_FILES just finished? That would remove some of the uncertainty. 
+    -- We'll make those changes in a moment - but before we do, let's talk about one other change. 
+
+-- SERVERLESS COMPUTE
+    -- The WAREHOUSE we are using to run the tasks has to spin up each time we run the task. Then, if it's designed to auto-suspend in 5 minutes, it won't EVER suspend, because the task will run again before it has time to shut down. This can cost a lot of credits.
+    -- Snowflake has a different option called "SERVERLESS". It means you don't have to spin up a warehouse, instead you can use a thread or two of another compute resource that is already running. Serverless compute is much more efficient for these very small tasks that don't do very much, but do what they do quite often.  
+
+-- To use the SERVERLESS task mode, we'll need to grant that privilege to SYSADMIN. 
+
+
+
+-- 🥋 Grant Serverless Task Management to SYSADMIN
+use role accountadmin;
+grant EXECUTE MANAGED TASK on account to SYSADMIN;
+
+--switch back to sysadmin
+use role sysadmin;
+
+-- 🥋 Replace the WAREHOUSE Property in Your Tasks
+    -- USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL'
+    -- NOTE: This line REPLACES the WAREHOUSE line in the task. Do not use it in addition to a warehouse line. Replace the warehouse line with the line above. 
+
+-- 🥋 Replace or Update the SCHEDULE Property
+    -- Use one of these lines in each task. Make sure you are using the SYSADMIN role when you replace these task definitions.  
+
+--Change the SCHEDULE for GET_NEW_FILES so it runs more often
+    -- schedule='5 Minutes'
+
+--Remove the SCHEDULE property and have LOAD_LOGS_ENHANCED run  
+    --each time GET_NEW_FILES completes
+    -- after AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES
+
+
+--changes in the GET_NEW_FILES task
+create or replace task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES
+	USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL' -----warehouse=COMPUTE_WH
+	schedule='5 minute'
+	as copy into AGS_GAME_AUDIENCE.raw.PL_GAME_LOGS
+        from @AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE
+        file_format = (format_name = AGS_GAME_AUDIENCE.raw.ff_json_logs);
+
+--changes in the LOAD_LOGS_ENHANCED task
+create or replace task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED
+	USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL'  -----warehouse=COMPUTE_WH
+	after AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES    -- schedule='5 minute'
+	as MERGE INTO ENHANCED.LOGS_ENHANCED e
+USING (
+        SELECT logs.ip_address 
+        , logs.user_login as GAMER_NAME
+        , logs.user_event as GAME_EVENT_NAME
+        , logs.datetime_iso8601 as GAME_EVENT_UTC
+        , city
+        , region
+        , country
+        , timezone as GAMER_LTZ_NAME
+        , CONVERT_TIMEZONE( 'UTC',timezone,logs.datetime_iso8601) as game_event_ltz
+        , DAYNAME(game_event_ltz) as DOW_NAME
+        , TOD_NAME
+        from ags_game_audience.raw.PL_LOGS logs
+        JOIN ipinfo_geoloc.demo.location loc 
+        ON ipinfo_geoloc.public.TO_JOIN_KEY(logs.ip_address) = loc.join_key
+        AND ipinfo_geoloc.public.TO_INT(logs.ip_address) 
+        BETWEEN start_ip_int AND end_ip_int
+        JOIN ags_game_audience.raw.TIME_OF_DAY_LU tod
+        ON HOUR(game_event_ltz) = tod.hour
+    ) r --we'll put our fancy select here
+ON r.GAMER_NAME = e.GAMER_NAME
+and r.game_event_utc = e.game_event_utc
+and r.game_event_name = e.game_event_name
+WHEN NOT MATCHED THEN  ---inserts ONLY when do not match
+insert (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME) --list of columns
+values (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME);
+
+
+
+-- 🎯 Resume the Tasks
+    -- Remember that each time you edit the task, you have to RESUME the task. You can do this using the GUI or with an ALTER command. 
+    -- When you have tasks that are dependent on other tasks, you must resume the dependent tasks BEFORE the triggering tasks. Resume LOAD_LOGS_ENHANCED first, then resume GET_NEW_FILES. 
+    
+    -- FYI: The first task in the chain is called the Root Task. In our case, GET_NEW_FILES is our Root Task. 
+
+-- NOTE: These graphs are sometimes called DAGS (Directed Acyclic Graphs) instead of just "Graphs". Look at how fancy you are now that you know that!
+
+
+alter task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES resume;
+alter task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED resume;
+
+
+-- 🦗 Patience Grasshopper
+    -- Now that you have resumed your tasks, the root is scheduled, but hasn't yet run. When will it run? Check your Task History. 
+
+    -- Once it completes it's run, it will trigger the next task. Only AFTER that task has completed will the DORA check on the next page pass. So watch your tasks succeed before proceeding to the DORA check on the next page. 

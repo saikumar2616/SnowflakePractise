@@ -1,0 +1,68 @@
+-- 📓  Zena's Athleisure Product Catalog! 
+-- How can she store the images
+
+
+-- 📓  Reviewing Data Structuring (Not Data Types)
+-- Semi-Structured data (in a file like .json, or .xml)  is data that has unpredictable levels of nesting and often each "row" of data can vary widely in the information it contains. Semi-structured data stored in a flat file may have markup using angle brackets (like XML) or curly brackets (like JSON). Snowflake can load and process common nested data types like JSON, XML, Avro, Parquet, and ORC. Each of the semi-structured data types is loaded into Snowflake tables using a column data type called VARIANT.  A VARIANT column might contain many key-value pairs and multiple nested records and it will also keep the markup symbols like curly braces and angle brackets.  
+-- NOTE: A file can be semi-structured, even if the file's name ends in .txt. If the data inside a file is formatted using semi-structured layout and markup, the file is considered semi-structured.  
+
+-- There is a third type of data file called Unstructured data. (File names will have extensions like .mp3, .mp4, .png, etc.)  Snowflake added support for Unstructured Data in August of 2021. Snowflake has ways to help you store, access, process, manage, govern, and share unstructured data. Videos, images, audio files, pdfs and other file types are considered unstructured data.
+
+-- Snowflake's goal is to make it very easy for you to combine all three types of data so that you can analyze and process it together rather than needing to use multiple tools to do your data work. 
+
+-- Rapid Prototyping techniques for her Proof of Concept.
+-- Zena asks Klaus how she should access the images she wants to use for her Proof of Concept.  Klaus has an S3 Bucket he uses for his own projects. He offers to set up a few folders for Zena. Once her images are in his bucket, Zena should set up a stage and then use a Directory table to process the image metadata. She might also end up using File Formats, External Tables and Materialized Views, since all of those objects can be helpful in rapid prototyping. 
+
+
+-- 🥋 Klaus' Bucket
+-- https://<bucket name>.s3.<region>.amazonaws.com/
+-- open in a new browser ---- https://uni-klaus.s3.us-west-2.amazonaws.com/
+
+
+
+-- 🥋 An Image from Klaus' Bucket
+-- https://uni-klaus.s3.us-west-2.amazonaws.com/clothing/90s_tracksuit.png
+
+
+-- 🥋 Create a Database for Zena's Athleisure Idea
+use role SYSADMIN;
+create database ZENAS_ATHLEISURE_DB;
+drop schema ZENAS_ATHLEISURE_DB.PUBLIC; 
+create schema ZENAS_ATHLEISURE_DB.PRODUCTS;
+
+
+
+--🥋 Create a Stage to Access the Sweat Suit Images
+CREATE STAGE ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING 
+	URL = 's3://uni-klaus/clothing' 
+	DIRECTORY = ( ENABLE = true );
+
+
+list @ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_CLOTHING;
+
+-- 🎯 Create another Stage for another of Klaus' folders!
+use role SYSADMIN;
+CREATE STAGE ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_ZMD  
+	URL = 's3://uni-klaus/zenas_metadata' 
+	DIRECTORY = ( ENABLE = true );
+
+
+list @ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_ZMD;
+
+
+-- 🎯 Create A 3rd Stage!
+use role SYSADMIN;
+CREATE or replace STAGE ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_SNEAKERS   
+	URL = 's3://uni-klaus/sneakers' 
+	DIRECTORY = ( ENABLE = true );
+
+
+list @ZENAS_ATHLEISURE_DB.PRODUCTS.UNI_KLAUS_SNEAKERS;
+
+
+-- 📓  Revisiting the Warehouse Staging Metaphor, Again!!
+
+
+-- REDEFINING THE WORD "STAGE" FOR SNOWFLAKE ADVANCED USE
+
+-- We already know that in the wider world of Data Warehousing, we can use the word "stage" to mean "a temporary storage location", and we can also use "stage" to mean a cloud folder where data is stored -- but now, more than ever, we should open our mind to the idea that a defined Snowflake Stage Object is most accurately thought of as a named gateway into a cloud folder where, presumably, data files are stored either short OR long term. 

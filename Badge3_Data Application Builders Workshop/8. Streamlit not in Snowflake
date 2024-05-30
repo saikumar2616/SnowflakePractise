@@ -1,0 +1,42 @@
+-- 📓 An Indispensible Tool for Builders - The GitHub Account!
+-- 🧰  Create a GitHub Account (Optional)
+
+-- 🥋 Create a New Repo in Your GitHub Account (Required)
+-- 🥋 Download the Python File from Your SiS App
+-- 🥋 Create a streamlit_app.py File in Your Repo
+-- 🎯 Make a Second File for your Repo
+    -- The other file that makes up your SiS app is called environment.yaml. Download that file. 
+    
+    -- Create a second file in your Repo called requirements.txt. Copy the contents of the environment.yaml file into the requirements.txt file and save the    file in your repo.     
+
+-- 📓 Changes Needed When Moving from SiS to SniS
+    -- The biggest differences between SiS and SniS are: 
+        
+        -- 1) How users connect to your app.  
+        -- 2) How you connect your app to Snowflake. 
+        
+    -- With SniS, users will be able to connect to your app more easily. You can set up your SniS app in a way that doesn't require them to log in or have a USER in your Snowflake account. In fact, Streamlit will host your app for free if you make it open to the public. 
+
+
+        -- Remove below lines :
+        --     from snowflake.snowpark.context import get_active_session
+        --     session = get_active_session()
+
+
+        -- And add below 2 lines:
+        --     cnx = st.connection("snowflake")
+        --     session = cnx.session()
+
+
+-- 🥋 Make Updates to the streamlit_app.py File
+
+    -- Connecting your app to Snowflake is less easy in SniS than it was in SiS. In SiS, the connection happened automatically. In Streamlit, we'll need to carry out a number of steps. 
+    
+    -- We'll begin by making a few changes to the streamlit_app.py file in your GitHub Repo. 
+
+
+-- 🎯 Edit the requirements.txt File
+    -- #requirements.txt
+    -- snowflake-connector-python
+    -- snowflake-snowpark-python
+    -- streamlit==1.31.1

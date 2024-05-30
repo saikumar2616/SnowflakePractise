@@ -1,0 +1,6 @@
+list @~/worksheet_data;
+list @~/user_stage;
+
+select name FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) ;
+
+get @~/worksheet_data/<name> file:///<your local location> ;

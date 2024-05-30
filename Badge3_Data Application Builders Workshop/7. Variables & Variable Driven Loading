@@ -1,0 +1,40 @@
+--Streamlit outside the Snowflake is called SniS(Streamlit not in Snowflake) just for understanding.
+-- What is Variable?
+
+set mystery_bag = 'What is in here?';
+
+select $mystery_bag;
+
+-- 📓  What is a Function?
+-- 🥋 Create a Simple User Defined Function (UDF)
+create function sum_mystery_bag_vars (var1 number,var2 number, var3 number ) 
+returns number as 'select var1+var2+var3';
+
+select sum_mystery_bag_vars(12,35,776);
+
+-- 📓  Where Did the $$$'s Go?
+-- We only need the dollar sign symbol when referring to a local variable. We don't use them when variables are used in a function, unless, you're using local variables and sending them to the function. Compare the code below to the code from the previous lab, above and make sure you understand the difference.
+
+
+--🥋 Combine Local Variables & Function Calls and understand teh difference of using $
+set var1=2;
+set var2=5;
+set var3=8;
+
+select $var1+$var2+$var3;
+
+
+
+--📓  Snowflake Functions versus User-Defined Functions
+-- Your Snowflake account comes with hundreds of functions already defined. When you define your own functions, you can use the system functions as part of the logic for your user-defined functions! 
+
+set alternating_caps_phrase='wHy He Is DoInG tHat?';
+select $alternating_caps_phrase;
+select initcap($alternating_caps_phrase);
+
+-- 🎯 CHALLENGE LAB:  Write a UDF that Neutralizes Alternating Caps Phrases!
+create function NEUTRALIZE_WHINING (giventxt TEXT)
+returns TEXT as 'INITCAP(giventxt)';
+
+select $alternating_caps_phrase;
+select NEUTRALIZE_WHINING($alternating_caps_phrase)

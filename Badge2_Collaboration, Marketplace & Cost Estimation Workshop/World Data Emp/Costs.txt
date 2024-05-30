@@ -1,0 +1,5 @@
+--Includes Storage , Compute , Serverless and loud charges
+
+-- Budgets needs to be ativate manually even in the Paid accounts by following command:
+
+CALL snowflake.local.account_root_budget!ACTIVATE()

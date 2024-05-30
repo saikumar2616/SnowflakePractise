@@ -1,0 +1,12 @@
+select * from vegetable_details;
+
+select * from vegetable_details 
+where PLANT_NAME='Spinach'
+and root_depth_code='D';
+
+
+delete from vegetable_details 
+where PLANT_NAME='Spinach'
+and root_depth_code='D';
+
+select * from vegetable_details;
